@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 
 import {
   uploadMultipleImages,
-  uploadImage,
+  uploadOwnershipDocument,
 } from "../../../services/cloudinaryService";
 
 import {
@@ -235,17 +235,15 @@ async function handleSubmit(e) {
     // LANDLORD OWNERSHIP PROOF
     // ======================================
 
-    let ownershipProofUrl = "";
+   let ownershipProofUrl = "";
 
-    if (
-      isLandlord &&
-      ownershipProof
-    ) {
-      ownershipProofUrl =
-        await uploadImage(
-          ownershipProof,
-        );
-    }
+if (isLandlord && ownershipProof) {
+  const document = await uploadOwnershipDocument(
+    ownershipProof,
+  );
+
+  ownershipProofUrl = document.url;
+}
 
     // ======================================
     // PROPERTY DATA

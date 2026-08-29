@@ -1,10 +1,10 @@
 import {
   addDoc,
   collection,
-  serverTimestamp,
   query,
   where,
   getDocs,
+  serverTimestamp,
   doc,
   getDoc,
   updateDoc,
@@ -13,9 +13,9 @@ import {
 
 import { db } from "./firestore";
 
-// ==========================================
+// =====================================================
 // CREATE PROPERTY
-// ==========================================
+// =====================================================
 
 export async function createProperty(
   propertyData,
@@ -27,40 +27,54 @@ export async function createProperty(
     throw new Error("Property owner is required.");
   }
 
-  const docRef = await addDoc(collection(db, "properties"), {
-    ...propertyData,
+  const docRef = await addDoc(
+    collection(db, "properties"),
+    {
+      ...propertyData,
 
-    // Actual property owner
-    ownerId,
+      // Actual owner / creator
+      ownerId,
 
-    ownerRole,
+      ownerRole,
 
-    // Agent managing the property
-    agentId,
+      // Agent managing the property
+      agentId: agentId || null,
 
-    managementType: agentId ? "agent" : "owner",
+      managementType: agentId
+        ? "agent"
+        : "owner",
 
-    // Property status
-    status: "available",
+      // Property status
+      status: "available",
 
-    // Admin verification
-    approvalStatus: "pending",
+      // Admin verification
+      approvalStatus: "pending",
 
-    featured: false,
+      featured: false,
 
-    views: 0,
+      views: 0,
 
-    savedCount: 0,
+      savedCount: 0,
 
-    applicationCount: 0,
+      applicationCount: 0,
 
-    createdAt: serverTimestamp(),
+      // Tenant information
+      tenantId: null,
 
-    updatedAt: serverTimestamp(),
-  });
+      assignedAt: null,
+
+      createdAt: serverTimestamp(),
+
+      updatedAt: serverTimestamp(),
+    },
+  );
 
   return docRef.id;
 }
+
+// =====================================================
+// GET LANDLORDS
+// =====================================================
 
 export async function getLandlords() {
   const q = query(
@@ -76,11 +90,33 @@ export async function getLandlords() {
   }));
 }
 
-// ==========================================
+// =====================================================
+// GET AGENTS
+// =====================================================
+
+export async function getAgents() {
+  const q = query(
+    collection(db, "users"),
+    where("role", "==", "agent"),
+  );
+
+  const snapshot = await getDocs(q);
+
+  return snapshot.docs.map((item) => ({
+    id: item.id,
+    ...item.data(),
+  }));
+}
+
+// =====================================================
 // GET LANDLORD'S PROPERTIES
-// ==========================================
+// =====================================================
 
 export async function getMyProperties(ownerId) {
+  if (!ownerId) {
+    return [];
+  }
+
   const q = query(
     collection(db, "properties"),
     where("ownerId", "==", ownerId),
@@ -94,9 +130,9 @@ export async function getMyProperties(ownerId) {
   }));
 }
 
-// ==========================================
+// =====================================================
 // GET AGENT'S PROPERTIES
-// ==========================================
+// =====================================================
 
 export async function getAgentProperties(agentId) {
   if (!agentId) {
@@ -116,26 +152,45 @@ export async function getAgentProperties(agentId) {
   }));
 }
 
-// ==========================================
-// GET ALL AVAILABLE PUBLIC PROPERTIES
-// ==========================================
+// =====================================================
+// GET ALL PUBLIC AVAILABLE PROPERTIES
+// =====================================================
+// Used by the public properties/tenant browsing pages.
+//
+// We query by status only and filter approvalStatus
+// in JavaScript to avoid requiring a composite index.
+// =====================================================
 
 export async function getAllProperties() {
   const q = query(
     collection(db, "properties"),
-    where(
-      "status",
-      "==",
-      "available",
-    ),
-    where(
-      "approvalStatus",
-      "==",
-      "approved",
-    ),
+    where("status", "==", "available"),
   );
 
   const snapshot = await getDocs(q);
+
+  return snapshot.docs
+    .map((item) => ({
+      id: item.id,
+      ...item.data(),
+    }))
+    .filter(
+      (property) =>
+        property.approvalStatus === "approved",
+    );
+}
+
+// =====================================================
+// GET ALL PROPERTIES FOR ADMIN
+// =====================================================
+// Admin should be able to see pending, approved,
+// rejected, available and occupied properties.
+// =====================================================
+
+export async function getAllPropertiesForAdmin() {
+  const snapshot = await getDocs(
+    collection(db, "properties"),
+  );
 
   return snapshot.docs.map((item) => ({
     id: item.id,
@@ -143,12 +198,20 @@ export async function getAllProperties() {
   }));
 }
 
-// ==========================================
+// =====================================================
 // GET ONE PROPERTY
-// ==========================================
+// =====================================================
 
 export async function getPropertyById(propertyId) {
-  const propertyRef = doc(db, "properties", propertyId);
+  if (!propertyId) {
+    return null;
+  }
+
+  const propertyRef = doc(
+    db,
+    "properties",
+    propertyId,
+  );
 
   const snapshot = await getDoc(propertyRef);
 
@@ -162,62 +225,59 @@ export async function getPropertyById(propertyId) {
   };
 }
 
-// ==========================================
-// UPDATE PROPERTY
-// ==========================================
+// =====================================================
+// GET TENANT'S RENTED PROPERTIES
+// =====================================================
+// This is used by the tenant complaint page.
+//
+// A tenant can rent multiple properties, so every
+// property containing their tenantId is returned.
+// =====================================================
 
-export async function updateProperty(propertyId, propertyData) {
-  const propertyRef = doc(db, "properties", propertyId);
+export async function getTenantProperties(tenantId) {
+  if (!tenantId) {
+    return [];
+  }
 
-  await updateDoc(propertyRef, {
-    ...propertyData,
+  const q = query(
+    collection(db, "properties"),
+    where("tenantId", "==", tenantId),
+  );
 
-    updatedAt: serverTimestamp(),
-  });
+  const snapshot = await getDocs(q);
+
+  return snapshot.docs
+    .map((item) => ({
+      id: item.id,
+      ...item.data(),
+    }))
+    .filter(
+      (property) =>
+        property.tenantId === tenantId,
+    );
 }
 
-// ==========================================
-// ASSIGN PROPERTY TO AGENT
-// ==========================================
+// =====================================================
+// ASSIGN PROPERTY TO TENANT
+// =====================================================
 
-export async function assignPropertyToAgent(propertyId, agentId) {
+export async function assignPropertyToTenant(
+  propertyId,
+  tenantId,
+) {
   if (!propertyId) {
     throw new Error("Property ID is required.");
   }
 
-  if (!agentId) {
-    throw new Error("Agent ID is required.");
+  if (!tenantId) {
+    throw new Error("Tenant ID is required.");
   }
 
-  const propertyRef = doc(db, "properties", propertyId);
-
-  await updateDoc(propertyRef, {
-    agentId,
-
-    updatedAt: serverTimestamp(),
-  });
-}
-
-// ==========================================
-// REMOVE AGENT FROM PROPERTY
-// ==========================================
-
-export async function removeAgentFromProperty(propertyId) {
-  const propertyRef = doc(db, "properties", propertyId);
-
-  await updateDoc(propertyRef, {
-    agentId: null,
-
-    updatedAt: serverTimestamp(),
-  });
-}
-
-// ==========================================
-// ASSIGN PROPERTY TO TENANT
-// ==========================================
-
-export async function assignPropertyToTenant(propertyId, tenantId) {
-  const propertyRef = doc(db, "properties", propertyId);
+  const propertyRef = doc(
+    db,
+    "properties",
+    propertyId,
+  );
 
   await updateDoc(propertyRef, {
     tenantId,
@@ -230,13 +290,130 @@ export async function assignPropertyToTenant(propertyId, tenantId) {
   });
 }
 
-// ==========================================
+// =====================================================
+// REMOVE TENANT FROM PROPERTY
+// =====================================================
+
+export async function removeTenantFromProperty(
+  propertyId,
+) {
+  if (!propertyId) {
+    throw new Error("Property ID is required.");
+  }
+
+  const propertyRef = doc(
+    db,
+    "properties",
+    propertyId,
+  );
+
+  await updateDoc(propertyRef, {
+    tenantId: null,
+
+    status: "available",
+
+    assignedAt: null,
+
+    updatedAt: serverTimestamp(),
+  });
+}
+
+// =====================================================
+// UPDATE PROPERTY
+// =====================================================
+
+export async function updateProperty(
+  propertyId,
+  propertyData,
+) {
+  if (!propertyId) {
+    throw new Error("Property ID is required.");
+  }
+
+  const propertyRef = doc(
+    db,
+    "properties",
+    propertyId,
+  );
+
+  await updateDoc(propertyRef, {
+    ...propertyData,
+
+    updatedAt: serverTimestamp(),
+  });
+}
+
+// =====================================================
+// ASSIGN PROPERTY TO AGENT
+// =====================================================
+
+export async function assignPropertyToAgent(
+  propertyId,
+  agentId,
+) {
+  if (!propertyId) {
+    throw new Error("Property ID is required.");
+  }
+
+  if (!agentId) {
+    throw new Error("Agent ID is required.");
+  }
+
+  const propertyRef = doc(
+    db,
+    "properties",
+    propertyId,
+  );
+
+  await updateDoc(propertyRef, {
+    agentId,
+
+    managementType: "agent",
+
+    updatedAt: serverTimestamp(),
+  });
+}
+
+// =====================================================
+// REMOVE AGENT FROM PROPERTY
+// =====================================================
+
+export async function removeAgentFromProperty(
+  propertyId,
+) {
+  if (!propertyId) {
+    throw new Error("Property ID is required.");
+  }
+
+  const propertyRef = doc(
+    db,
+    "properties",
+    propertyId,
+  );
+
+  await updateDoc(propertyRef, {
+    agentId: null,
+
+    managementType: "owner",
+
+    updatedAt: serverTimestamp(),
+  });
+}
+
+// =====================================================
 // DELETE PROPERTY
-// ==========================================
+// =====================================================
 
 export async function deleteProperty(propertyId) {
-  const propertyRef = doc(db, "properties", propertyId);
+  if (!propertyId) {
+    throw new Error("Property ID is required.");
+  }
+
+  const propertyRef = doc(
+    db,
+    "properties",
+    propertyId,
+  );
 
   await deleteDoc(propertyRef);
 }
-

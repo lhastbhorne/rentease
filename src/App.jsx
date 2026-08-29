@@ -1,34 +1,51 @@
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 
+// =====================================================
+// LAYOUT
+// =====================================================
+
 import MainLayout from "./layouts/MainLayout";
+
+// =====================================================
+// PUBLIC PAGES
+// =====================================================
 
 import Home from "./pages/public/Home";
 import About from "./pages/public/About";
 import Properties from "./pages/public/Properties";
 import PropertyDetails from "./pages/public/PropertyDetails";
 import Contact from "./pages/public/Contact";
+
+// =====================================================
+// AUTH
+// =====================================================
+
 import Login from "./pages/auth/Login";
+import Register from "./pages/auth/Register";
 import RegisterTenant from "./pages/auth/RegisterTenant";
 import RegisterLandlord from "./pages/auth/RegisterLandlord";
-import Register from "./pages/auth/Register";
 import RegisterAgent from "./pages/auth/RegisterAgent";
 import ForgotPassword from "./pages/auth/ForgotPassword";
 import ResetPassword from "./pages/auth/ResetPassword";
 import VerifyEmail from "./pages/auth/VerifyEmail";
+
+// =====================================================
+// GUARDS
+// =====================================================
+
 import TenantRoute from "./guards/TenantRoute";
-import TenantDashboard from "./pages/tenant/Dashboard";
 import LandlordRoute from "./guards/LandlordRoute";
-import LandlordDashboard from "./pages/landlord/Dashboard";
 import AgentRoute from "./guards/AgentRoute";
-import AgentDashboard from "./pages/agent/Dashboard";
-import AddProperty from "./pages/landlord/AddProperty";
-import MyProperties from "./pages/landlord/MyProperties";
-import LandlordPropertyDetails from "./pages/landlord/PropertyDetails";
-import EditProperty from "./pages/landlord/EditProperty";
-import Complaints from "./pages/tenant/Complaints";
+import AdminRoute from "./guards/AdminRoute";
+
+// =====================================================
+// TENANT
+// =====================================================
+
+import TenantDashboard from "./pages/tenant/Dashboard";
+import TenantComplaints from "./pages/tenant/Complaints";
 import ApplyForProperty from "./pages/tenant/ApplyForProperty";
 import TenantApplications from "./pages/tenant/Applications";
-import LandlordApplications from "./pages/landlord/Applications";
 import MyRental from "./pages/tenant/MyRental";
 import TenantProperties from "./pages/tenant/Properties";
 import Contract from "./pages/tenant/Contract";
@@ -37,36 +54,137 @@ import TenantMessages from "./pages/tenant/Messages";
 import SavedProperties from "./pages/tenant/SavedProperties";
 import TenantNotifications from "./pages/tenant/Notifications";
 import TenantTenancy from "./pages/tenant/Tenancy";
+
+// =====================================================
+// LANDLORD
+// =====================================================
+
+import LandlordDashboard from "./pages/landlord/Dashboard";
+import AddProperty from "./pages/landlord/AddProperty";
+import MyProperties from "./pages/landlord/MyProperties";
+import LandlordPropertyDetails from "./pages/landlord/PropertyDetails";
+import EditProperty from "./pages/landlord/EditProperty";
+import LandlordApplications from "./pages/landlord/Applications";
+
+// =====================================================
+// AGENT
+// =====================================================
+
+import AgentDashboard from "./pages/agent/Dashboard";
 import AgentProperties from "./pages/agent/Properties";
 import AgentAddProperty from "./pages/agent/AddProperty";
 import AgentApplications from "./pages/agent/Applications";
 
-import AdminRoute from "./guards/AdminRoute";
+// =====================================================
+// ADMIN
+// =====================================================
+
 import AdminDashboard from "./pages/admin/Dashboard";
 import AdminVerification from "./pages/admin/Verification";
 import AdminProperties from "./pages/admin/Properties";
-import Notifications from "./pages/shared/Notifications";
+import AdminComplaints from "./pages/admin/Complaints";
 
+// =====================================================
+// SHARED
+// =====================================================
+
+import Notifications from "./pages/shared/Notifications";
+import AdminSupport from "./pages/support/AdminSupport";
+
+// =====================================================
+// APP
+// =====================================================
 
 function App() {
   return (
     <BrowserRouter>
       <Routes>
+
+        {/* =================================================
+            PUBLIC WEBSITE
+        ================================================= */}
+
         <Route element={<MainLayout />}>
-          <Route path="/" element={<Home />} />
-          <Route path="/about" element={<About />} />
-          <Route path="/properties" element={<Properties />} />
-          <Route path="/properties/:id" element={<PropertyDetails />} />
-          <Route path="/contact" element={<Contact />} />
-          <Route path="/login" element={<Login />} />
+
+          <Route
+            path="/"
+            element={<Home />}
+          />
+
+          <Route
+            path="/about"
+            element={<About />}
+          />
+
+          <Route
+            path="/properties"
+            element={<Properties />}
+          />
+
+          <Route
+            path="/properties/:id"
+            element={<PropertyDetails />}
+          />
+
+          <Route
+            path="/contact"
+            element={<Contact />}
+          />
+
+          <Route
+            path="/login"
+            element={<Login />}
+          />
+
         </Route>
-        <Route path="/register" element={<Register />} />
-        <Route path="/register/tenant" element={<RegisterTenant />} />
-        <Route path="/register/landlord" element={<RegisterLandlord />} />
-        <Route path="/register/agent" element={<RegisterAgent />} />
-        <Route path="/forgot-password" element={<ForgotPassword />} />
-        <Route path="/reset-password" element={<ResetPassword />} />
-        <Route path="/verify-email" element={<VerifyEmail />} />
+
+        {/* =================================================
+            REGISTRATION
+        ================================================= */}
+
+        <Route
+          path="/register"
+          element={<Register />}
+        />
+
+        <Route
+          path="/register/tenant"
+          element={<RegisterTenant />}
+        />
+
+        <Route
+          path="/register/landlord"
+          element={<RegisterLandlord />}
+        />
+
+        <Route
+          path="/register/agent"
+          element={<RegisterAgent />}
+        />
+
+        {/* =================================================
+            PASSWORD / EMAIL VERIFICATION
+        ================================================= */}
+
+        <Route
+          path="/forgot-password"
+          element={<ForgotPassword />}
+        />
+
+        <Route
+          path="/reset-password"
+          element={<ResetPassword />}
+        />
+
+        <Route
+          path="/verify-email"
+          element={<VerifyEmail />}
+        />
+
+        {/* =================================================
+            TENANT ROUTES
+        ================================================= */}
+
         <Route
           path="/tenant/dashboard"
           element={
@@ -75,38 +193,7 @@ function App() {
             </TenantRoute>
           }
         />
-        <Route
-          path="/tenant/complaints"
-          element={
-            <TenantRoute>
-              <Complaints />
-            </TenantRoute>
-          }
-        />
-        <Route
-          path="/tenant/apply"
-          element={
-            <TenantRoute>
-              <ApplyForProperty />
-            </TenantRoute>
-          }
-        />
-        <Route
-          path="/tenant/applications"
-          element={
-            <TenantRoute>
-              <TenantApplications />
-            </TenantRoute>
-          }
-        />
-        <Route
-          path="/tenant/my-rental"
-          element={
-            <TenantRoute>
-              <MyRental />
-            </TenantRoute>
-          }
-        />
+
         <Route
           path="/tenant/properties"
           element={
@@ -115,30 +202,25 @@ function App() {
             </TenantRoute>
           }
         />
+
         <Route
-          path="/tenant/contract"
+          path="/tenant/apply"
           element={
             <TenantRoute>
-              <Contract />
+              <ApplyForProperty />
             </TenantRoute>
           }
         />
+
         <Route
-          path="/tenant/payments"
+          path="/tenant/applications"
           element={
             <TenantRoute>
-              <Payments />
+              <TenantApplications />
             </TenantRoute>
           }
         />
-        <Route
-          path="/tenant/messages"
-          element={
-            <TenantRoute>
-              <TenantMessages />
-            </TenantRoute>
-          }
-        />
+
         <Route
           path="/tenant/saved"
           element={
@@ -147,14 +229,7 @@ function App() {
             </TenantRoute>
           }
         />
-        <Route
-          path="/tenant/notifications"
-          element={
-            <TenantRoute>
-              <TenantNotifications />
-            </TenantRoute>
-          }
-        />
+
         <Route
           path="/tenant/tenancy"
           element={
@@ -163,14 +238,75 @@ function App() {
             </TenantRoute>
           }
         />
+
         <Route
-          path="/notifications"
+          path="/tenant/my-rental"
           element={
             <TenantRoute>
-              <Notifications />
+              <MyRental />
             </TenantRoute>
           }
         />
+
+        <Route
+          path="/tenant/contract"
+          element={
+            <TenantRoute>
+              <Contract />
+            </TenantRoute>
+          }
+        />
+
+        <Route
+          path="/tenant/payments"
+          element={
+            <TenantRoute>
+              <Payments />
+            </TenantRoute>
+          }
+        />
+
+        <Route
+          path="/tenant/complaints"
+          element={
+            <TenantRoute>
+              <TenantComplaints />
+            </TenantRoute>
+          }
+        />
+
+        <Route
+          path="/tenant/messages"
+          element={
+            <TenantRoute>
+              <TenantMessages />
+            </TenantRoute>
+          }
+        />
+
+        <Route
+          path="/tenant/notifications"
+          element={
+            <TenantRoute>
+              <TenantNotifications />
+            </TenantRoute>
+          }
+        />
+
+        {/* Tenant → Admin */}
+
+        <Route
+          path="/tenant/support"
+          element={
+            <TenantRoute>
+              <AdminSupport />
+            </TenantRoute>
+          }
+        />
+
+        {/* =================================================
+            LANDLORD ROUTES
+        ================================================= */}
 
         <Route
           path="/landlord/dashboard"
@@ -198,6 +334,7 @@ function App() {
             </LandlordRoute>
           }
         />
+
         <Route
           path="/landlord/property/:id"
           element={
@@ -206,6 +343,7 @@ function App() {
             </LandlordRoute>
           }
         />
+
         <Route
           path="/landlord/edit-property/:id"
           element={
@@ -214,6 +352,7 @@ function App() {
             </LandlordRoute>
           }
         />
+
         <Route
           path="/landlord/applications"
           element={
@@ -222,6 +361,7 @@ function App() {
             </LandlordRoute>
           }
         />
+
         <Route
           path="/landlord/notifications"
           element={
@@ -231,6 +371,21 @@ function App() {
           }
         />
 
+        {/* Landlord → Admin */}
+
+        <Route
+          path="/landlord/support"
+          element={
+            <LandlordRoute>
+              <AdminSupport />
+            </LandlordRoute>
+          }
+        />
+
+        {/* =================================================
+            AGENT ROUTES
+        ================================================= */}
+
         <Route
           path="/agent/dashboard"
           element={
@@ -239,6 +394,7 @@ function App() {
             </AgentRoute>
           }
         />
+
         <Route
           path="/agent/properties"
           element={
@@ -247,6 +403,7 @@ function App() {
             </AgentRoute>
           }
         />
+
         <Route
           path="/agent/add-property"
           element={
@@ -255,6 +412,7 @@ function App() {
             </AgentRoute>
           }
         />
+
         <Route
           path="/agent/applications"
           element={
@@ -263,6 +421,7 @@ function App() {
             </AgentRoute>
           }
         />
+
         <Route
           path="/agent/notifications"
           element={
@@ -272,6 +431,21 @@ function App() {
           }
         />
 
+        {/* Agent → Admin */}
+
+        <Route
+          path="/agent/support"
+          element={
+            <AgentRoute>
+              <AdminSupport />
+            </AgentRoute>
+          }
+        />
+
+        {/* =================================================
+            ADMIN ROUTES
+        ================================================= */}
+
         <Route
           path="/admin/dashboard"
           element={
@@ -280,14 +454,16 @@ function App() {
             </AdminRoute>
           }
         />
+
         <Route
-          path="/admin/verification"
+          path="/admin/users"
           element={
             <AdminRoute>
-              <AdminVerification />
+              <AdminDashboard />
             </AdminRoute>
           }
         />
+
         <Route
           path="/admin/properties"
           element={
@@ -296,6 +472,25 @@ function App() {
             </AdminRoute>
           }
         />
+
+        <Route
+          path="/admin/verification"
+          element={
+            <AdminRoute>
+              <AdminVerification />
+            </AdminRoute>
+          }
+        />
+
+        <Route
+          path="/admin/complaints"
+          element={
+            <AdminRoute>
+              <AdminComplaints />
+            </AdminRoute>
+          }
+        />
+
         <Route
           path="/admin/notifications"
           element={
@@ -304,14 +499,7 @@ function App() {
             </AdminRoute>
           }
         />
-        <Route
-          path="/admin/complaints"
-          element={
-            <AdminRoute>
-              <Complaints />
-            </AdminRoute>
-          }
-        />
+
       </Routes>
     </BrowserRouter>
   );

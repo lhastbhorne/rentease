@@ -15,6 +15,7 @@ import {
   FaKey,
   FaMoneyBillWave,
   FaBell,
+  FaHeadset,
 } from "react-icons/fa";
 
 import { useAuth } from "../../contexts/AuthContext";
@@ -75,6 +76,12 @@ function Sidebar({ sidebarOpen, setSidebarOpen }) {
       },
 
       {
+        name: "Admin Support",
+        icon: <FaHeadset />,
+        path: "/tenant/support",
+      },
+
+      {
         name: "Notifications",
         icon: <FaBell />,
         path: "/tenant/notifications",
@@ -115,10 +122,17 @@ function Sidebar({ sidebarOpen, setSidebarOpen }) {
         path: "/landlord/applications",
       },
       {
+        name: "Admin Support",
+        icon: <FaHeadset />,
+        path: "/landlord/support",
+      },
+
+      {
         name: "Notifications",
         icon: <FaBell />,
         path: "/landlord/notifications",
       },
+
       { name: "Messages", icon: <FaEnvelope />, path: "/landlord/messages" },
       { name: "Settings", icon: <FaCog />, path: "/landlord/settings" },
     ],
@@ -152,6 +166,12 @@ function Sidebar({ sidebarOpen, setSidebarOpen }) {
         name: "Clients",
         icon: <FaUsers />,
         path: "/agent/clients",
+      },
+
+      {
+        name: "Admin Support",
+        icon: <FaHeadset />,
+        path: "/agent/support",
       },
 
       {
@@ -203,7 +223,7 @@ function Sidebar({ sidebarOpen, setSidebarOpen }) {
         path: "/admin/complaints",
       },
 
-        {
+      {
         name: "Notifications",
         icon: <FaBell />,
         path: "/admin/notifications",
