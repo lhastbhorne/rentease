@@ -1,3 +1,4 @@
+import { motion } from "framer-motion";
 import { useEffect, useState } from "react";
 
 import {
@@ -5,9 +6,7 @@ import {
   uploadOwnershipDocument,
 } from "../../../services/cloudinaryService";
 
-import {
-  createProperty
-} from "../../../firebase/propertyService";
+import { createProperty } from "../../../firebase/propertyService";
 
 import { useAuth } from "../../../contexts/AuthContext";
 
@@ -18,25 +17,90 @@ function PropertyForm() {
   const isLandlord = user?.role === "landlord";
 
   // ==========================================
+  // PROPERTY AMENITIES
+  // ==========================================
+
+  const PROPERTY_AMENITIES = [
+    "Running Water",
+    "Borehole",
+    "Public Water",
+    "Prepaid Meter",
+    "24/7 Electricity",
+    "Generator",
+    "Solar Power",
+    "Air Conditioning",
+    "POP Ceiling",
+    "Wardrobe",
+    "Kitchen Cabinets",
+    "Tiled Floor",
+    "Balcony",
+    "Dining Area",
+    "Store Room",
+    "Parking Space",
+    "Security",
+    "CCTV",
+    "Fenced Compound",
+    "Gate",
+    "Swimming Pool",
+    "Gym",
+    "Laundry Area",
+    "Servant Quarter",
+    "Water Heater",
+  ];
+
+  // ==========================================
+  // NEARBY FACILITIES
+  // ==========================================
+
+  const NEARBY_FACILITIES = [
+    "Supermarket",
+    "Shopping Mall",
+    "Pharmacy",
+    "Hospital",
+    "School",
+    "University",
+    "Bus Stop",
+    "Fuel Station",
+    "Restaurant",
+    "Church",
+    "Mosque",
+    "Police Station",
+    "Bank / ATM",
+    "Market",
+    "Gym",
+    "Park",
+  ];
+
+  // ==========================================
   // FORM DATA
   // ==========================================
 
-  const [formData, setFormData] = useState({
+  const initialFormData = {
     title: "",
     description: "",
     category: "",
     type: "",
+
     bedrooms: "",
+    toilets: "",
     bathrooms: "",
+
     parking: "",
     furnished: "",
     area: "",
     price: "",
+    rentFrequency: "",
+
+    areaName: "",
     address: "",
     city: "",
     state: "",
+
     amenities: [],
-  });
+    nearbyFacilities: [],
+  };
+
+  const [formData, setFormData] = useState(initialFormData);
 
   // ==========================================
   // IMAGES
@@ -48,28 +112,14 @@ function PropertyForm() {
   // OWNERSHIP PROOF
   // ==========================================
 
-  const [ownershipProof, setOwnershipProof] =
-    useState(null);
-
-  const [
-    ownershipProofPreview,
-    setOwnershipProofPreview,
-  ] = useState("");
+  const [ownershipProof, setOwnershipProof] = useState(null);
+  const [ownershipProofPreview, setOwnershipProofPreview] = useState("");
 
   // ==========================================
-  // LANDLORDS FOR AGENT
+  // SUBMITTING
   // ==========================================
 
-  // ==========================================
-  // SUBMIT
-  // ==========================================
-
-  const [submitting, setSubmitting] =
-    useState(false);
-
-  // ==========================================
-  // LOAD LANDLORDS FOR AGENT
-  // ==========================================
+  const [submitting, setSubmitting] = useState(false);
 
   // ==========================================
   // CLEAN IMAGE PREVIEWS
@@ -79,16 +129,12 @@ function PropertyForm() {
     return () => {
       images.forEach((image) => {
         if (image.preview) {
-          URL.revokeObjectURL(
-            image.preview,
-          );
+          URL.revokeObjectURL(image.preview);
         }
       });
 
       if (ownershipProofPreview) {
-        URL.revokeObjectURL(
-          ownershipProofPreview,
-        );
+        URL.revokeObjectURL(ownershipProofPreview);
       }
     };
   }, []);
@@ -98,10 +144,7 @@ function PropertyForm() {
   // ==========================================
 
   function handleChange(e) {
-    const {
-      name,
-      value,
-    } = e.target;
+    const { name, value } = e.target;
 
     setFormData((prev) => ({
       ...prev,
@@ -110,26 +153,72 @@ function PropertyForm() {
   }
 
   // ==========================================
+  // HANDLE NUMBER INPUT
+  // ==========================================
+
+  function handleNumberChange(name, value) {
+    const numericValue = Math.max(0, Number(value || 0));
+
+    setFormData((prev) => ({
+      ...prev,
+      [name]: numericValue,
+    }));
+  }
+
+  // ==========================================
+  // HANDLE PRICE / AREA
+  // ==========================================
+
+  function handleFormattedNumberChange(name, value) {
+    const cleanValue = value.replace(/,/g, "");
+
+    if (/^\d*$/.test(cleanValue)) {
+      setFormData((prev) => ({
+        ...prev,
+        [name]: cleanValue,
+      }));
+    }
+  }
+
+  // ==========================================
+  // HANDLE AMENITIES
+  // ==========================================
+
+  function toggleAmenity(amenity) {
+    setFormData((prev) => ({
+      ...prev,
+      amenities: prev.amenities.includes(amenity)
+        ? prev.amenities.filter((item) => item !== amenity)
+        : [...prev.amenities, amenity],
+    }));
+  }
+
+  // ==========================================
+  // HANDLE NEARBY FACILITIES
+  // ==========================================
+
+  function toggleNearbyFacility(facility) {
+    setFormData((prev) => ({
+      ...prev,
+      nearbyFacilities: prev.nearbyFacilities.includes(facility)
+        ? prev.nearbyFacilities.filter((item) => item !== facility)
+        : [...prev.nearbyFacilities, facility],
+    }));
+  }
+
+  // ==========================================
   // HANDLE IMAGE SELECTION
   // ==========================================
 
   function handleImageChange(e) {
-    const files = Array.from(
-      e.target.files,
-    );
+    const files = Array.from(e.target.files || []);
 
-    const newImages = files.map(
-      (file) => ({
-        file,
-        preview:
-          URL.createObjectURL(file),
-      }),
-    );
+    const newImages = files.map((file) => ({
+      file,
+      preview: URL.createObjectURL(file),
+    }));
 
-    setImages((prev) => [
-      ...prev,
-      ...newImages,
-    ]);
+    setImages((prev) => [...prev, ...newImages]);
 
     e.target.value = "";
   }
@@ -140,20 +229,13 @@ function PropertyForm() {
 
   function removeImage(index) {
     setImages((prev) => {
-      const imageToRemove =
-        prev[index];
+      const imageToRemove = prev[index];
 
-      if (
-        imageToRemove?.preview
-      ) {
-        URL.revokeObjectURL(
-          imageToRemove.preview,
-        );
+      if (imageToRemove?.preview) {
+        URL.revokeObjectURL(imageToRemove.preview);
       }
 
-      return prev.filter(
-        (_, i) => i !== index,
-      );
+      return prev.filter((_, i) => i !== index);
     });
   }
 
@@ -161,21 +243,19 @@ function PropertyForm() {
   // OWNERSHIP PROOF
   // ==========================================
 
-  function handleOwnershipProofChange(
-    e,
-  ) {
-    const file =
-      e.target.files?.[0];
+  function handleOwnershipProofChange(e) {
+    const file = e.target.files?.[0];
 
     if (!file) {
       return;
     }
 
-    setOwnershipProof(file);
+    if (ownershipProofPreview) {
+      URL.revokeObjectURL(ownershipProofPreview);
+    }
 
-    setOwnershipProofPreview(
-      URL.createObjectURL(file),
-    );
+    setOwnershipProof(file);
+    setOwnershipProofPreview(URL.createObjectURL(file));
 
     e.target.value = "";
   }
@@ -184,248 +264,215 @@ function PropertyForm() {
   // SUBMIT
   // ==========================================
 
-async function handleSubmit(e) {
-  e.preventDefault();
+  async function handleSubmit(e) {
+    e.preventDefault();
 
-  if (!user) {
-    alert(
-      "You must be logged in to add a property.",
-    );
-    return;
-  }
+    if (!user) {
+      alert("You must be logged in to add a property.");
+      return;
+    }
 
-  if (!isAgent && !isLandlord) {
-    alert(
-      "Only landlords and agents can add properties.",
-    );
-    return;
-  }
+    if (!isAgent && !isLandlord) {
+      alert("Only landlords and agents can add properties.");
+      return;
+    }
 
-  if (isLandlord && !ownershipProof) {
-    alert(
-      "Please upload proof of ownership.",
-    );
-    return;
-  }
+    if (isLandlord && !ownershipProof) {
+      alert("Please upload proof of ownership.");
+      return;
+    }
 
-  if (images.length === 0) {
-    alert(
-      "Please upload at least one property image.",
-    );
-    return;
-  }
+    if (images.length === 0) {
+      alert("Please upload at least one property image.");
+      return;
+    }
 
-  try {
-    setSubmitting(true);
+    if (!formData.areaName.trim()) {
+      alert("Please enter the area or neighborhood.");
+      return;
+    }
 
-    // ======================================
-    // UPLOAD PROPERTY IMAGES
-    // ======================================
+    try {
+      setSubmitting(true);
 
-    const imageFiles = images.map(
-      (image) => image.file,
-    );
+      // ======================================
+      // UPLOAD PROPERTY IMAGES
+      // ======================================
 
-    const imageUrls =
-      await uploadMultipleImages(
-        imageFiles,
-      );
+      const imageFiles = images.map((image) => image.file);
 
-    // ======================================
-    // LANDLORD OWNERSHIP PROOF
-    // ======================================
+      const imageUrls = await uploadMultipleImages(imageFiles);
 
-   let ownershipProofUrl = "";
+      // ======================================
+      // LANDLORD OWNERSHIP PROOF
+      // ======================================
 
-if (isLandlord && ownershipProof) {
-  const document = await uploadOwnershipDocument(
-    ownershipProof,
-  );
+      let ownershipProofUrl = "";
 
-  ownershipProofUrl = document.url;
-}
+      if (isLandlord && ownershipProof) {
+        const document = await uploadOwnershipDocument(ownershipProof);
 
-    // ======================================
-    // PROPERTY DATA
-    // ======================================
+        ownershipProofUrl = document.url;
+      }
 
-    const propertyData = {
-      ...formData,
+      // ======================================
+      // PROPERTY DATA
+      // ======================================
 
-      price: Number(
-        String(
-          formData.price || "",
-        ).replace(/,/g, ""),
-      ),
+      const propertyData = {
+        ...formData,
 
-      bedrooms: Number(
-        formData.bedrooms || 0,
-      ),
+        // Numeric values
+        price: Number(String(formData.price || "").replace(/,/g, "")),
 
-      bathrooms: Number(
-        formData.bathrooms || 0,
-      ),
+        rentFrequency: formData.rentFrequency,
 
-      parking: Number(
-        formData.parking || 0,
-      ),
+        bedrooms: Number(formData.bedrooms || 0),
 
-      area: Number(
-        String(
-          formData.area || "",
-        ).replace(/,/g, ""),
-      ),
+        toilets: Number(formData.toilets || 0),
 
-      images: imageUrls,
+        bathrooms: Number(formData.bathrooms || 0),
 
-      // ==================================
-      // MANAGEMENT
-      // ==================================
+        parking: Number(formData.parking || 0),
 
-      managementType: isAgent
-        ? "agent"
-        : "owner",
+        area: Number(String(formData.area || "").replace(/,/g, "")),
 
-      agentId: isAgent
-        ? user.uid
-        : null,
+        // Images
+        images: imageUrls,
 
-      // ==================================
-      // OWNERSHIP
-      // ==================================
+        // ==================================
+        // MANAGEMENT
+        // ==================================
 
-      ownershipProof:
-        ownershipProofUrl,
+        // Landlord:
+        // ownerId = landlord UID
+        // agentId = null
+        // managementType = owner
 
-      // ==================================
-      // SUBMISSION
-      // ==================================
+        // Agent:
+        // ownerId = agent UID
+        // agentId = agent UID
+        // managementType = agent
 
-      submittedBy: user.uid,
+        managementType: isAgent ? "agent" : "owner",
 
-      submittedByRole:
-        user.role,
+        agentId: isAgent ? user.uid : null,
 
-      approvalStatus:
-        "pending",
-    };
+        // ==================================
+        // MANAGER
+        // ==================================
 
-    // ======================================
-    // IMPORTANT
-    // ======================================
-    //
-    // For landlord:
-    // ownerId = landlord UID
-    //
-    // For agent:
-    // ownerId = agent UID for now
-    // agentId = agent UID
-    //
-    // The tenant does NOT see ownerId.
-    //
-    // ======================================
+        managerId: user.uid,
 
-    const propertyId =
-      await createProperty(
+        managerName: user.fullName || user.displayName || "",
+
+        managerRole: user.role,
+
+        // ==================================
+        // OWNERSHIP
+        // ==================================
+
+        ownershipProof: ownershipProofUrl,
+
+        // ==================================
+        // SUBMISSION
+        // ==================================
+
+        submittedBy: user.uid,
+
+        submittedByRole: user.role,
+
+        approvalStatus: "pending",
+      };
+
+      // ======================================
+      // CREATE PROPERTY
+      // ======================================
+
+      const propertyId = await createProperty(
         propertyData,
         user.uid,
         user.role,
-        isAgent
-          ? user.uid
-          : null,
+        isAgent ? user.uid : null,
       );
 
-    console.log(
-      "Property created:",
-      propertyId,
-    );
+      console.log("Property created:", propertyId);
 
-    alert(
-      "Property submitted successfully for verification.",
-    );
+      alert("Property submitted successfully for verification.");
 
-    // Reset form
-    setFormData({
-      title: "",
-      description: "",
-      category: "",
-      type: "",
-      bedrooms: "",
-      bathrooms: "",
-      parking: "",
-      furnished: "",
-      area: "",
-      price: "",
-      address: "",
-      city: "",
-      state: "",
-      amenities: [],
-    });
+      // ======================================
+      // RESET FORM
+      // ======================================
 
-    setOwnershipProof(null);
-    setOwnershipProofPreview("");
+      setFormData(initialFormData);
 
-    images.forEach((image) => {
-      if (image.preview) {
-        URL.revokeObjectURL(
-          image.preview,
-        );
-      }
-    });
+      setOwnershipProof(null);
+      setOwnershipProofPreview("");
 
-    setImages([]);
+      images.forEach((image) => {
+        if (image.preview) {
+          URL.revokeObjectURL(image.preview);
+        }
+      });
 
-  } catch (error) {
-    console.error(
-      "Error creating property:",
-      error,
-    );
+      setImages([]);
+    } catch (error) {
+      console.error("Error creating property:", error);
 
-    alert(
-      error.message ||
-        "Failed to create property. Please try again.",
-    );
-  } finally {
-    setSubmitting(false);
+      alert(error.message || "Failed to create property. Please try again.");
+    } finally {
+      setSubmitting(false);
+    }
   }
-}
+
+  // ==========================================
+  // STYLES
+  // ==========================================
+
+  const inputClass =
+    "w-full rounded-lg border border-slate-300 bg-white p-3 text-slate-900 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 dark:border-slate-700 dark:bg-slate-900 dark:text-white dark:focus:border-blue-400";
+
+  const labelClass =
+    "mb-2 block font-medium text-slate-700 dark:text-slate-200";
+
+  const checkboxClass =
+    "flex cursor-pointer items-center gap-3 rounded-xl border border-slate-200 bg-slate-50 p-4 transition hover:border-blue-400 hover:bg-blue-50 dark:border-slate-700 dark:bg-slate-800 dark:hover:border-blue-500 dark:hover:bg-slate-700";
 
   return (
-    <form
+    <motion.form
       onSubmit={handleSubmit}
+      initial={{ opacity: 0, y: 15 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.4 }}
       className="space-y-8"
     >
-
-      {/* ========================================
-          AGENT PROPERTY OWNER
-      ======================================== */}
-
       {/* ========================================
           PROPERTY INFORMATION
       ======================================== */}
 
-      <div className="rounded-2xl bg-white p-8 shadow-sm">
-
-        <h2 className="mb-8 text-3xl font-bold text-slate-900">
+      <motion.div
+        initial={{ opacity: 0, y: 15 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.05 }}
+        className="rounded-2xl bg-white p-8 shadow-sm dark:bg-slate-900"
+      >
+        <h2 className="mb-8 text-3xl font-bold text-slate-900 dark:text-white">
           Property Information
         </h2>
 
         <div className="grid gap-6 md:grid-cols-2">
-
           {/* TITLE */}
 
           <div>
-            <label className="mb-2 block font-medium">
-              Property Title
-            </label>
+            <label className={labelClass}>Property Title</label>
 
             <input
               type="text"
               name="title"
               value={formData.title}
               onChange={handleChange}
-              placeholder="Luxury Apartment"
-              className="w-full rounded-lg border p-3"
+              placeholder="Luxury 3 Bedroom Apartment"
+              className={inputClass}
               required
             />
           </div>
@@ -433,288 +480,229 @@ if (isLandlord && ownershipProof) {
           {/* CATEGORY */}
 
           <div>
-            <label className="mb-2 block font-medium">
-              Category
-            </label>
+            <label className={labelClass}>Category</label>
 
             <select
               name="category"
               value={formData.category}
               onChange={handleChange}
-              className="w-full rounded-lg border p-3"
+              className={inputClass}
               required
             >
-              <option value="">
-                Select Category
-              </option>
-
-              <option value="Residential">
-                Residential
-              </option>
-
-              <option value="Commercial">
-                Commercial
-              </option>
-
-              <option value="Industrial">
-                Industrial
-              </option>
-
-              <option value="Land">
-                Land
-              </option>
+              <option value="">Select Category</option>
+              <option value="Residential">Residential</option>
+              <option value="Commercial">Commercial</option>
+              <option value="Industrial">Industrial</option>
+              <option value="Land">Land</option>
             </select>
           </div>
 
           {/* PROPERTY TYPE */}
 
           <div>
-            <label className="mb-2 block font-medium">
-              Property Type
-            </label>
+            <label className={labelClass}>Property Type</label>
 
             <select
               name="type"
               value={formData.type}
               onChange={handleChange}
-              className="w-full rounded-lg border p-3"
+              className={inputClass}
               required
             >
-              <option value="">
-                Select Type
-              </option>
-
-              <option value="Apartment">
-                Apartment
-              </option>
-
-              <option value="Duplex">
-                Duplex
-              </option>
-
-              <option value="Bungalow">
-                Bungalow
-              </option>
-
-              <option value="Self Contain">
-                Self Contain
-              </option>
-
-              <option value="Office">
-                Office
-              </option>
-
-              <option value="Shop">
-                Shop
-              </option>
+              <option value="">Select Type</option>
+              <option value="Apartment">Apartment</option>
+              <option value="Duplex">Duplex</option>
+              <option value="Bungalow">Bungalow</option>
+              <option value="Self Contain">Self Contain</option>
+              <option value="Office">Office</option>
+              <option value="Shop">Shop</option>
             </select>
           </div>
 
-          {/* PRICE */}
+          {/* RENTAL PRICE */}
 
           <div>
-            <label className="mb-2 block font-medium">
-              Price (₦)
-            </label>
+            <label className={labelClass}>Rental Price (₦)</label>
 
             <input
               type="text"
               name="price"
               value={
-                formData.price
-                  ? Number(
-                      formData.price,
-                    ).toLocaleString()
-                  : ""
+                formData.price ? Number(formData.price).toLocaleString() : ""
               }
-              onChange={(e) => {
-                const value =
-                  e.target.value.replace(
-                    /,/g,
-                    "",
-                  );
-
-                if (
-                  /^\d*$/.test(
-                    value,
-                  )
-                ) {
-                  setFormData(
-                    (prev) => ({
-                      ...prev,
-                      price: value,
-                    }),
-                  );
-                }
-              }}
+              onChange={(e) =>
+                handleFormattedNumberChange("price", e.target.value)
+              }
               placeholder="2,500,000"
-              className="w-full rounded-lg border p-3"
+              className={inputClass}
               required
             />
+
+            <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">
+              Enter the amount the tenant will pay according to the selected
+              rent frequency.
+            </p>
+          </div>
+
+          {/* RENT FREQUENCY */}
+
+          <div>
+            <label className={labelClass}>Rent Frequency</label>
+
+            <select
+              name="rentFrequency"
+              value={formData.rentFrequency}
+              onChange={handleChange}
+              className={inputClass}
+              required
+            >
+              <option value="">Select rent frequency</option>
+
+              <option value="monthly">Per Month</option>
+
+              <option value="annual">Per Annum</option>
+            </select>
+
+            <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">
+              Choose whether the advertised rent is monthly or annual.
+            </p>
           </div>
 
           {/* BEDROOMS */}
 
           <div>
-            <label className="mb-2 block font-medium">
-              Bedrooms
-            </label>
+            <label className={labelClass}>Bedrooms</label>
 
             <input
               type="number"
               name="bedrooms"
               min="0"
               value={formData.bedrooms}
-              onChange={(e) =>
-                setFormData(
-                  (prev) => ({
-                    ...prev,
-                    bedrooms: Math.max(
-                      0,
-                      Number(
-                        e.target.value,
-                      ),
-                    ),
-                  }),
-                )
-              }
-              className="w-full rounded-lg border p-3"
+              onChange={(e) => handleNumberChange("bedrooms", e.target.value)}
+              placeholder="3"
+              className={inputClass}
+              required
             />
+          </div>
+
+          {/* TOILETS */}
+
+          <div>
+            <label className={labelClass}>Toilets</label>
+
+            <input
+              type="number"
+              name="toilets"
+              min="0"
+              value={formData.toilets}
+              onChange={(e) => handleNumberChange("toilets", e.target.value)}
+              placeholder="1"
+              className={inputClass}
+              required
+            />
+
+            <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">
+              Total number of toilets in the property.
+            </p>
           </div>
 
           {/* BATHROOMS */}
 
           <div>
-            <label className="mb-2 block font-medium">
-              Bathrooms
-            </label>
+            <label className={labelClass}>Bathrooms</label>
 
             <input
               type="number"
               name="bathrooms"
               min="0"
               value={formData.bathrooms}
-              onChange={(e) =>
-                setFormData(
-                  (prev) => ({
-                    ...prev,
-                    bathrooms: Math.max(
-                      0,
-                      Number(
-                        e.target.value,
-                      ),
-                    ),
-                  }),
-                )
-              }
-              className="w-full rounded-lg border p-3"
+              onChange={(e) => handleNumberChange("bathrooms", e.target.value)}
+              placeholder="3"
+              className={inputClass}
+              required
             />
+
+            <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">
+              Total number of bathrooms in the property.
+            </p>
           </div>
 
           {/* PARKING */}
 
           <div>
-            <label className="mb-2 block font-medium">
-              Parking Spaces
-            </label>
+            <label className={labelClass}>Parking Spaces</label>
 
             <input
               type="number"
               name="parking"
               min="0"
               value={formData.parking}
-              onChange={(e) =>
-                setFormData(
-                  (prev) => ({
-                    ...prev,
-                    parking: Math.max(
-                      0,
-                      Number(
-                        e.target.value,
-                      ),
-                    ),
-                  }),
-                )
-              }
-              className="w-full rounded-lg border p-3"
+              onChange={(e) => handleNumberChange("parking", e.target.value)}
+              placeholder="2"
+              className={inputClass}
             />
           </div>
 
           {/* FURNISHED */}
 
           <div>
-            <label className="mb-2 block font-medium">
-              Furnished
-            </label>
+            <label className={labelClass}>Furnished</label>
 
             <select
               name="furnished"
               value={formData.furnished}
               onChange={handleChange}
-              className="w-full rounded-lg border p-3"
+              className={inputClass}
             >
-              <option value="">
-                Select
-              </option>
-
-              <option value="Yes">
-                Yes
-              </option>
-
-              <option value="No">
-                No
-              </option>
+              <option value="">Select</option>
+              <option value="Yes">Yes</option>
+              <option value="No">No</option>
             </select>
           </div>
 
-          {/* AREA */}
+          {/* AREA SIZE */}
 
           <div>
-            <label className="mb-2 block font-medium">
-              Area (sqft)
-            </label>
+            <label className={labelClass}>Property Size (sqft)</label>
 
             <input
               type="text"
               name="area"
               value={
-                formData.area
-                  ? Number(
-                      formData.area,
-                    ).toLocaleString()
-                  : ""
+                formData.area ? Number(formData.area).toLocaleString() : ""
               }
-              onChange={(e) => {
-                const value =
-                  e.target.value.replace(
-                    /,/g,
-                    "",
-                  );
-
-                if (
-                  /^\d*$/.test(
-                    value,
-                  )
-                ) {
-                  setFormData(
-                    (prev) => ({
-                      ...prev,
-                      area: value,
-                    }),
-                  );
-                }
-              }}
+              onChange={(e) =>
+                handleFormattedNumberChange("area", e.target.value)
+              }
               placeholder="2,500"
-              className="w-full rounded-lg border p-3"
+              className={inputClass}
             />
+          </div>
+
+          {/* AREA / NEIGHBORHOOD */}
+
+          <div>
+            <label className={labelClass}>Area / Neighborhood</label>
+
+            <input
+              type="text"
+              name="areaName"
+              value={formData.areaName}
+              onChange={handleChange}
+              placeholder="Ikeja, GRA"
+              className={inputClass}
+              required
+            />
+
+            <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">
+              This is the general area tenants will see.
+            </p>
           </div>
 
           {/* STATE */}
 
           <div>
-            <label className="mb-2 block font-medium">
-              State
-            </label>
+            <label className={labelClass}>State</label>
 
             <input
               type="text"
@@ -722,25 +710,7 @@ if (isLandlord && ownershipProof) {
               value={formData.state}
               onChange={handleChange}
               placeholder="Lagos"
-              className="w-full rounded-lg border p-3"
-              required
-            />
-          </div>
-
-          {/* ADDRESS */}
-
-          <div className="md:col-span-2">
-            <label className="mb-2 block font-medium">
-              Address
-            </label>
-
-            <input
-              type="text"
-              name="address"
-              value={formData.address}
-              onChange={handleChange}
-              placeholder="16, Sunmonu Street"
-              className="w-full rounded-lg border p-3"
+              className={inputClass}
               required
             />
           </div>
@@ -748,9 +718,7 @@ if (isLandlord && ownershipProof) {
           {/* CITY */}
 
           <div>
-            <label className="mb-2 block font-medium">
-              City
-            </label>
+            <label className={labelClass}>City</label>
 
             <input
               type="text"
@@ -758,61 +726,174 @@ if (isLandlord && ownershipProof) {
               value={formData.city}
               onChange={handleChange}
               placeholder="Lagos"
-              className="w-full rounded-lg border p-3"
+              className={inputClass}
               required
             />
+          </div>
+
+          {/* EXACT ADDRESS */}
+
+          <div className="md:col-span-2">
+            <label className={labelClass}>Exact Address</label>
+
+            <input
+              type="text"
+              name="address"
+              value={formData.address}
+              onChange={handleChange}
+              placeholder="16, Sunmonu Street"
+              className={inputClass}
+              required
+            />
+
+            <div className="mt-3 rounded-lg bg-blue-50 p-4 dark:bg-blue-950/30">
+              <p className="text-sm text-blue-700 dark:text-blue-300">
+                🔒 Your exact address is kept private for platform verification,
+                tenancy and inspection purposes. It will not be displayed
+                publicly to tenants.
+              </p>
+            </div>
           </div>
 
           {/* DESCRIPTION */}
 
           <div className="md:col-span-2">
-            <label className="mb-2 block font-medium">
-              Description
-            </label>
+            <label className={labelClass}>Description</label>
 
             <textarea
               rows="6"
               name="description"
-              value={
-                formData.description
-              }
+              value={formData.description}
               onChange={handleChange}
-              placeholder="Describe the property..."
-              className="w-full rounded-lg border p-3"
+              placeholder="Describe the property, its condition, environment and other important details..."
+              className={inputClass}
               required
             />
           </div>
-
         </div>
-      </div>
+      </motion.div>
+
+      {/* ========================================
+          PROPERTY AMENITIES
+      ======================================== */}
+
+      <motion.div
+        initial={{ opacity: 0, y: 15 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.1 }}
+        className="rounded-2xl bg-white p-8 shadow-sm dark:bg-slate-900"
+      >
+        <div>
+          <h2 className="text-2xl font-bold text-slate-900 dark:text-white">
+            Property Amenities
+          </h2>
+
+          <p className="mt-2 text-slate-500 dark:text-slate-400">
+            Select the features and facilities available inside or directly on
+            the property.
+          </p>
+        </div>
+
+        <div className="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          {PROPERTY_AMENITIES.map((amenity) => (
+            <label key={amenity} className={checkboxClass}>
+              <input
+                type="checkbox"
+                checked={formData.amenities.includes(amenity)}
+                onChange={() => toggleAmenity(amenity)}
+                className="h-5 w-5 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+              />
+
+              <span className="text-sm font-medium text-slate-700 dark:text-slate-200">
+                {amenity}
+              </span>
+            </label>
+          ))}
+        </div>
+
+        {formData.amenities.length > 0 && (
+          <p className="mt-5 text-sm font-medium text-blue-600 dark:text-blue-400">
+            {formData.amenities.length} amenit
+            {formData.amenities.length === 1 ? "y" : "ies"} selected
+          </p>
+        )}
+      </motion.div>
+
+      {/* ========================================
+          NEARBY FACILITIES
+      ======================================== */}
+
+      <motion.div
+        initial={{ opacity: 0, y: 15 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.15 }}
+        className="rounded-2xl bg-white p-8 shadow-sm dark:bg-slate-900"
+      >
+        <div>
+          <h2 className="text-2xl font-bold text-slate-900 dark:text-white">
+            Nearby Facilities
+          </h2>
+
+          <p className="mt-2 text-slate-500 dark:text-slate-400">
+            Select facilities that are reasonably close to the property.
+          </p>
+        </div>
+
+        <div className="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          {NEARBY_FACILITIES.map((facility) => (
+            <label key={facility} className={checkboxClass}>
+              <input
+                type="checkbox"
+                checked={formData.nearbyFacilities.includes(facility)}
+                onChange={() => toggleNearbyFacility(facility)}
+                className="h-5 w-5 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+              />
+
+              <span className="text-sm font-medium text-slate-700 dark:text-slate-200">
+                {facility}
+              </span>
+            </label>
+          ))}
+        </div>
+
+        {formData.nearbyFacilities.length > 0 && (
+          <p className="mt-5 text-sm font-medium text-blue-600 dark:text-blue-400">
+            {formData.nearbyFacilities.length} nearby facilit
+            {formData.nearbyFacilities.length === 1 ? "y" : "ies"} selected
+          </p>
+        )}
+      </motion.div>
 
       {/* ========================================
           PROPERTY IMAGES
       ======================================== */}
 
-      <div className="rounded-2xl bg-white p-8 shadow-sm">
-
-        <h2 className="text-2xl font-bold text-slate-900">
+      <motion.div
+        initial={{ opacity: 0, y: 15 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.2 }}
+        className="rounded-2xl bg-white p-8 shadow-sm dark:bg-slate-900"
+      >
+        <h2 className="text-2xl font-bold text-slate-900 dark:text-white">
           Property Images
         </h2>
 
-        <p className="mt-2 text-slate-500">
-          Upload clear images of the property.
+        <p className="mt-2 text-slate-500 dark:text-slate-400">
+          Upload clear images of the property. The first image will be used as
+          the main property image.
         </p>
 
         <label
           htmlFor="property-images"
-          className="mt-6 flex cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed border-slate-300 bg-slate-50 p-10 text-center hover:border-blue-500 hover:bg-blue-50"
+          className="mt-6 flex cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed border-slate-300 bg-slate-50 p-10 text-center transition hover:border-blue-500 hover:bg-blue-50 dark:border-slate-700 dark:bg-slate-800 dark:hover:border-blue-400 dark:hover:bg-slate-700"
         >
-          <div className="text-5xl text-blue-600">
-            📷
-          </div>
+          <div className="text-5xl text-blue-600">📷</div>
 
-          <p className="mt-4 text-lg font-semibold text-slate-700">
+          <p className="mt-4 text-lg font-semibold text-slate-700 dark:text-slate-200">
             Click to upload property images
           </p>
 
-          <p className="mt-2 text-sm text-slate-500">
+          <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">
             PNG, JPG or JPEG
           </p>
 
@@ -828,83 +909,81 @@ if (isLandlord && ownershipProof) {
 
         {images.length > 0 && (
           <div className="mt-8">
-
-            <h3 className="mb-4 text-lg font-semibold">
+            <h3 className="mb-4 text-lg font-semibold text-slate-900 dark:text-white">
               Selected Images ({images.length})
             </h3>
 
             <div className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-4">
+              {images.map((image, index) => (
+                <motion.div
+                  key={index}
+                  initial={{
+                    opacity: 0,
+                    scale: 0.9,
+                  }}
+                  animate={{
+                    opacity: 1,
+                    scale: 1,
+                  }}
+                  className="group relative overflow-hidden rounded-xl border border-slate-200 dark:border-slate-700"
+                >
+                  <img
+                    src={image.preview}
+                    alt={`Property ${index + 1}`}
+                    className="h-40 w-full object-cover"
+                  />
 
-              {images.map(
-                (image, index) => (
-                  <div
-                    key={index}
-                    className="group relative overflow-hidden rounded-xl border"
+                  <button
+                    type="button"
+                    onClick={() => removeImage(index)}
+                    className="absolute right-2 top-2 rounded-full bg-red-600 px-3 py-1 text-sm font-bold text-white transition hover:bg-red-700"
                   >
-                    <img
-                      src={image.preview}
-                      alt={`Property ${
-                        index + 1
-                      }`}
-                      className="h-40 w-full object-cover"
-                    />
+                    ×
+                  </button>
 
-                    <button
-                      type="button"
-                      onClick={() =>
-                        removeImage(
-                          index,
-                        )
-                      }
-                      className="absolute right-2 top-2 rounded-full bg-red-600 px-3 py-1 text-sm font-bold text-white"
-                    >
-                      ×
-                    </button>
-
-                    {index === 0 && (
-                      <div className="absolute bottom-0 left-0 right-0 bg-blue-600 px-2 py-1 text-center text-sm font-medium text-white">
-                        Main Image
-                      </div>
-                    )}
-                  </div>
-                ),
-              )}
-
+                  {index === 0 && (
+                    <div className="absolute bottom-0 left-0 right-0 bg-blue-600 px-2 py-1 text-center text-sm font-medium text-white">
+                      Main Image
+                    </div>
+                  )}
+                </motion.div>
+              ))}
             </div>
           </div>
         )}
-      </div>
+      </motion.div>
 
       {/* ========================================
           LANDLORD OWNERSHIP PROOF
       ======================================== */}
 
       {isLandlord && (
-        <div className="rounded-2xl bg-white p-8 shadow-sm">
-
-          <h2 className="text-2xl font-bold text-slate-900">
+        <motion.div
+          initial={{ opacity: 0, y: 15 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.25 }}
+          className="rounded-2xl bg-white p-8 shadow-sm dark:bg-slate-900"
+        >
+          <h2 className="text-2xl font-bold text-slate-900 dark:text-white">
             Proof of Ownership
           </h2>
 
-          <p className="mt-2 text-slate-500">
-            Upload a document proving that you
-            own this property. This will be
+          <p className="mt-2 text-slate-500 dark:text-slate-400">
+            Upload a document proving that you own this property. This will be
             reviewed by the administrator.
           </p>
 
           <label
             htmlFor="ownership-proof"
-            className="mt-6 flex cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed border-slate-300 bg-slate-50 p-10 text-center hover:border-blue-500 hover:bg-blue-50"
+            className="mt-6 flex cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed border-slate-300 bg-slate-50 p-10 text-center transition hover:border-blue-500 hover:bg-blue-50 dark:border-slate-700 dark:bg-slate-800 dark:hover:border-blue-400 dark:hover:bg-slate-700"
           >
-            <div className="text-5xl">
-              📄
-            </div>
+            <div className="text-5xl">📄</div>
 
-            <p className="mt-4 text-lg font-semibold text-slate-700">
+            <p className="mt-4 text-lg font-semibold text-slate-700 dark:text-slate-200">
               Upload ownership document *
             </p>
 
-            <p className="mt-2 text-sm text-slate-500">
+            <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">
               JPG, PNG or PDF
             </p>
 
@@ -912,26 +991,19 @@ if (isLandlord && ownershipProof) {
               id="ownership-proof"
               type="file"
               accept="image/png,image/jpeg,image/jpg,application/pdf"
-              onChange={
-                handleOwnershipProofChange
-              }
+              onChange={handleOwnershipProofChange}
               className="hidden"
             />
           </label>
 
           {ownershipProof && (
-            <div className="mt-5 rounded-lg bg-green-50 p-4 text-green-700">
-              <p className="font-semibold">
-                Document selected
-              </p>
+            <div className="mt-5 rounded-lg bg-green-50 p-4 text-green-700 dark:bg-green-950/30 dark:text-green-400">
+              <p className="font-semibold">Document selected</p>
 
-              <p className="mt-1 text-sm">
-                {ownershipProof.name}
-              </p>
+              <p className="mt-1 text-sm">{ownershipProof.name}</p>
             </div>
           )}
-
-        </div>
+        </motion.div>
       )}
 
       {/* ========================================
@@ -939,22 +1011,17 @@ if (isLandlord && ownershipProof) {
       ======================================== */}
 
       <div className="flex justify-end">
-
-        <button
+        <motion.button
           type="submit"
           disabled={submitting}
-          className="rounded-xl bg-blue-600 px-8 py-3 font-semibold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
+          whileHover={!submitting ? { y: -2 } : {}}
+          whileTap={!submitting ? { scale: 0.98 } : {}}
+          className="rounded-xl bg-blue-600 px-8 py-3 font-semibold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50 dark:hover:bg-blue-500"
         >
-          {submitting
-            ? "Submitting..."
-            : isAgent
-              ? "Submit Property"
-              : "Submit Property"}
-        </button>
-
+          {submitting ? "Submitting..." : "Submit Property"}
+        </motion.button>
       </div>
-
-    </form>
+    </motion.form>
   );
 }
 

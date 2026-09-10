@@ -23,18 +23,18 @@ function Stats() {
   ];
 
   return (
-    <section className="bg-white py-16">
+    <section className="bg-white py-16 transition-colors duration-300 dark:bg-slate-950">
       <div className="mx-auto grid max-w-7xl grid-cols-2 gap-8 px-6 md:grid-cols-4">
         {stats.map((stat) => (
           <div
             key={stat.id}
-            className="rounded-xl bg-slate-50 p-6 text-center shadow-sm transition hover:shadow-lg"
+            className="rounded-xl bg-slate-50 p-6 text-center shadow-sm transition duration-300 hover:shadow-lg dark:bg-slate-900"
           >
-            <h2 className="text-4xl font-bold text-blue-600">
+            <h2 className="text-4xl font-bold text-blue-600 dark:text-blue-400">
               {stat.number}
             </h2>
 
-            <p className="mt-3 text-gray-600">
+            <p className="mt-3 text-gray-600 dark:text-slate-400">
               {stat.title}
             </p>
           </div>

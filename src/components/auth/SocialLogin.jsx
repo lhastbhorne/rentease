@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { motion } from "framer-motion";
 import { FaGoogle } from "react-icons/fa";
 import {
   GoogleAuthProvider,
@@ -178,18 +179,54 @@ function SocialLogin() {
   }
 
   return (
-    <button
+    <motion.button
       type="button"
       onClick={handleGoogleLogin}
       disabled={loading}
-      className="flex w-full items-center justify-center gap-3 rounded-xl border border-slate-300 py-3 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
+      initial={{
+        opacity: 0,
+        y: 10,
+      }}
+      animate={{
+        opacity: 1,
+        y: 0,
+      }}
+      transition={{
+        duration: 0.35,
+        ease: "easeOut",
+      }}
+      whileHover={!loading ? { y: -2 } : {}}
+      whileTap={!loading ? { scale: 0.98 } : {}}
+      className="flex w-full items-center justify-center gap-3 rounded-xl border border-slate-300 bg-white py-3 font-medium text-slate-700 transition-colors duration-300 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
     >
-      <FaGoogle />
+      <motion.span
+        animate={
+          loading
+            ? {
+                rotate: 360,
+              }
+            : {
+                rotate: 0,
+              }
+        }
+        transition={
+          loading
+            ? {
+                duration: 1,
+                repeat: Infinity,
+                ease: "linear",
+              }
+            : {
+                duration: 0.2,
+              }
+        }
+      >
+        <FaGoogle />
+      </motion.span>
 
       {loading ? "Signing in with Google..." : "Continue with Google"}
-    </button>
+    </motion.button>
   );
- 
 }
 
 export default SocialLogin;

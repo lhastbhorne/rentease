@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 import { Link, useNavigate } from "react-router-dom";
 
 import AuthLayout from "../../components/auth/AuthLayout";
@@ -90,102 +91,291 @@ function RegisterTenant() {
       title="Create Tenant Account"
       subtitle="Join RentEase and start finding verified rental properties."
     >
-      <form onSubmit={handleSubmit} className="space-y-5">
-        {error && (
-          <div className="rounded-lg bg-red-100 border border-red-300 p-3 text-red-700">
-            {error}
-          </div>
-        )}
+      <motion.form
+        initial={{
+          opacity: 0,
+          y: 25,
+        }}
+        animate={{
+          opacity: 1,
+          y: 0,
+        }}
+        transition={{
+          duration: 0.45,
+          ease: "easeOut",
+        }}
+        onSubmit={handleSubmit}
+        className="space-y-5"
+      >
+        {/* ==========================================
+            ERROR
+        ========================================== */}
 
-        <AuthInput
-          label="Full Name"
-          name="fullName"
-          placeholder="John Doe"
-          value={formData.fullName}
-          onChange={handleChange}
-        />
+        <AnimatePresence>
+          {error && (
+            <motion.div
+              initial={{
+                opacity: 0,
+                height: 0,
+                y: -10,
+              }}
+              animate={{
+                opacity: 1,
+                height: "auto",
+                y: 0,
+              }}
+              exit={{
+                opacity: 0,
+                height: 0,
+                y: -10,
+              }}
+              transition={{
+                duration: 0.3,
+              }}
+              className="overflow-hidden"
+            >
+              <div className="rounded-lg border border-red-300 bg-red-100 p-3 text-sm text-red-700 transition-colors duration-300 dark:border-red-900/50 dark:bg-red-950/40 dark:text-red-400">
+                {error}
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
 
-        <AuthInput
-          label="Email Address"
-          type="email"
-          name="email"
-          placeholder="john@example.com"
-          value={formData.email}
-          onChange={handleChange}
-        />
+        {/* ==========================================
+            FULL NAME
+        ========================================== */}
 
-        <AuthInput
-          label="Phone Number"
-          type="tel"
-          name="phone"
-          placeholder="+234 801 234 5678"
-          value={formData.phone}
-          onChange={handleChange}
-        />
+        <AnimatedField delay={0.05}>
+          <AuthInput
+            label="Full Name"
+            name="fullName"
+            placeholder="John Doe"
+            value={formData.fullName}
+            onChange={handleChange}
+          />
+        </AnimatedField>
 
-        <PasswordInput
-          label="Password"
-          name="password"
-          placeholder="Create your password"
-          value={formData.password}
-          onChange={handleChange}
-        />
+        {/* ==========================================
+            EMAIL
+        ========================================== */}
 
-        <PasswordInput
-          label="Confirm Password"
-          name="confirmPassword"
-          placeholder="Confirm your password"
-          value={formData.confirmPassword}
-          onChange={handleChange}
-        />
+        <AnimatedField delay={0.1}>
+          <AuthInput
+            label="Email Address"
+            type="email"
+            name="email"
+            placeholder="john@example.com"
+            value={formData.email}
+            onChange={handleChange}
+          />
+        </AnimatedField>
 
-        <label className="flex items-start gap-3 text-sm text-slate-600">
+        {/* ==========================================
+            PHONE
+        ========================================== */}
+
+        <AnimatedField delay={0.15}>
+          <AuthInput
+            label="Phone Number"
+            type="tel"
+            name="phone"
+            placeholder="+234 801 234 5678"
+            value={formData.phone}
+            onChange={handleChange}
+          />
+        </AnimatedField>
+
+        {/* ==========================================
+            PASSWORD
+        ========================================== */}
+
+        <AnimatedField delay={0.2}>
+          <PasswordInput
+            label="Password"
+            name="password"
+            placeholder="Create your password"
+            value={formData.password}
+            onChange={handleChange}
+          />
+        </AnimatedField>
+
+        {/* ==========================================
+            CONFIRM PASSWORD
+        ========================================== */}
+
+        <AnimatedField delay={0.25}>
+          <PasswordInput
+            label="Confirm Password"
+            name="confirmPassword"
+            placeholder="Confirm your password"
+            value={formData.confirmPassword}
+            onChange={handleChange}
+          />
+        </AnimatedField>
+
+        {/* ==========================================
+            TERMS
+        ========================================== */}
+
+        <motion.label
+          initial={{
+            opacity: 0,
+            y: 10,
+          }}
+          animate={{
+            opacity: 1,
+            y: 0,
+          }}
+          transition={{
+            delay: 0.3,
+          }}
+          className="flex items-start gap-3 text-sm text-slate-600 transition-colors duration-300 dark:text-slate-400"
+        >
           <input
             type="checkbox"
             name="agree"
             checked={formData.agree}
             onChange={handleChange}
-            className="mt-1"
+            className="mt-1 rounded border-slate-300 text-blue-600 focus:ring-blue-500 dark:border-slate-600 dark:bg-slate-800"
           />
 
           <span>
             I agree to the{" "}
             <Link
               to="/terms"
-              className="font-semibold text-blue-600 hover:underline"
+              className="font-semibold text-blue-600 transition-colors hover:text-blue-700 hover:underline dark:text-blue-400 dark:hover:text-blue-300"
             >
               Terms & Conditions
             </Link>{" "}
             and{" "}
             <Link
               to="/privacy"
-              className="font-semibold text-blue-600 hover:underline"
+              className="font-semibold text-blue-600 transition-colors hover:text-blue-700 hover:underline dark:text-blue-400 dark:hover:text-blue-300"
             >
               Privacy Policy
             </Link>
             .
           </span>
-        </label>
+        </motion.label>
 
-        <AuthButton>
-          {loading ? "Creating Account..." : "Create Account"}
-        </AuthButton>
+        {/* ==========================================
+            SUBMIT
+        ========================================== */}
 
-        <Divider />
+        <motion.div
+          initial={{
+            opacity: 0,
+            y: 10,
+          }}
+          animate={{
+            opacity: 1,
+            y: 0,
+          }}
+          transition={{
+            delay: 0.35,
+          }}
+          whileHover={{
+            y: -2,
+          }}
+          whileTap={{
+            scale: 0.98,
+          }}
+        >
+          <AuthButton>
+            {loading ? "Creating Account..." : "Create Account"}
+          </AuthButton>
+        </motion.div>
 
-        <SocialLogin />
+        {/* ==========================================
+            DIVIDER
+        ========================================== */}
 
-        <p className="text-center text-slate-600">
+        <motion.div
+          initial={{
+            opacity: 0,
+          }}
+          animate={{
+            opacity: 1,
+          }}
+          transition={{
+            delay: 0.4,
+          }}
+        >
+          <Divider />
+        </motion.div>
+
+        {/* ==========================================
+            SOCIAL LOGIN
+        ========================================== */}
+
+        <motion.div
+          initial={{
+            opacity: 0,
+            y: 10,
+          }}
+          animate={{
+            opacity: 1,
+            y: 0,
+          }}
+          transition={{
+            delay: 0.45,
+          }}
+        >
+          <SocialLogin />
+        </motion.div>
+
+        {/* ==========================================
+            LOGIN
+        ========================================== */}
+
+        <motion.p
+          initial={{
+            opacity: 0,
+          }}
+          animate={{
+            opacity: 1,
+          }}
+          transition={{
+            delay: 0.5,
+          }}
+          className="text-center text-slate-600 transition-colors duration-300 dark:text-slate-400"
+        >
           Already have an account?{" "}
           <Link
             to="/login"
-            className="font-semibold text-blue-600 hover:underline"
+            className="font-semibold text-blue-600 transition-colors hover:text-blue-700 hover:underline dark:text-blue-400 dark:hover:text-blue-300"
           >
             Login
           </Link>
-        </p>
-      </form>
+        </motion.p>
+      </motion.form>
     </AuthLayout>
+  );
+}
+
+// ==========================================
+// ANIMATED FIELD
+// ==========================================
+
+function AnimatedField({ children, delay = 0 }) {
+  return (
+    <motion.div
+      initial={{
+        opacity: 0,
+        x: -15,
+      }}
+      animate={{
+        opacity: 1,
+        x: 0,
+      }}
+      transition={{
+        delay,
+        duration: 0.35,
+        ease: "easeOut",
+      }}
+    >
+      {children}
+    </motion.div>
   );
 }
 

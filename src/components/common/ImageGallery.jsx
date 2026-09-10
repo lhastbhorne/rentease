@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { motion } from "framer-motion";
 
 function ImageGallery({ images = [], title }) {
   const [selectedImage, setSelectedImage] = useState(images[0] || "");
@@ -12,44 +13,94 @@ function ImageGallery({ images = [], title }) {
   }
 
   return (
-    <section className="bg-white py-12">
+    <motion.section
+      initial={{ opacity: 0, y: 25 }}
+      whileInView={{ opacity: 1, y: 0 }}
+      viewport={{ once: true, amount: 0.15 }}
+      transition={{ duration: 0.5 }}
+      className="bg-white py-12 transition-colors duration-300 dark:bg-slate-950"
+    >
       <div className="mx-auto max-w-7xl px-6">
         {/* Featured Image */}
-
-        <div className="overflow-hidden rounded-3xl shadow-lg">
-          <img
+        <motion.div
+          initial={{ opacity: 0, scale: 0.98 }}
+          whileInView={{ opacity: 1, scale: 1 }}
+          viewport={{ once: true }}
+          transition={{ duration: 0.5 }}
+          className="overflow-hidden rounded-3xl shadow-lg dark:shadow-black/30"
+        >
+          <motion.img
+            key={selectedImage}
+            initial={{ opacity: 0, scale: 1.03 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ duration: 0.35 }}
             src={selectedImage}
             alt={title}
             className="h-[500px] w-full object-cover"
           />
-        </div>
+        </motion.div>
 
         {/* Thumbnail Images */}
-
-        <div className="mt-6 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-5">
+        <motion.div
+          initial="hidden"
+          whileInView="visible"
+          viewport={{ once: true }}
+          variants={{
+            hidden: {},
+            visible: {
+              transition: {
+                staggerChildren: 0.08,
+              },
+            },
+          }}
+          className="mt-6 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-5"
+        >
           {images.map((image, index) => (
-            <button
+            <motion.button
               key={index}
+              type="button"
               onClick={() => setSelectedImage(image)}
-              className={`overflow-hidden rounded-xl border-4 transition
-
-                ${
-                  selectedImage === image
-                    ? "border-blue-600"
-                    : "border-transparent"
-                }
-              `}
+              variants={{
+                hidden: {
+                  opacity: 0,
+                  y: 15,
+                },
+                visible: {
+                  opacity: 1,
+                  y: 0,
+                },
+              }}
+              whileHover={{
+                scale: 1.03,
+              }}
+              whileTap={{
+                scale: 0.97,
+              }}
+              transition={{
+                duration: 0.2,
+              }}
+              className={`overflow-hidden rounded-xl border-4 transition-all duration-300 ${
+                selectedImage === image
+                  ? "border-blue-600 shadow-md shadow-blue-600/20"
+                  : "border-transparent hover:border-slate-300 dark:hover:border-slate-700"
+              }`}
             >
-              <img
+              <motion.img
                 src={image}
                 alt={`${title} ${index + 1}`}
-                className="h-28 w-full object-cover transition hover:scale-105"
+                className="h-28 w-full object-cover"
+                whileHover={{
+                  scale: 1.08,
+                }}
+                transition={{
+                  duration: 0.3,
+                }}
               />
-            </button>
+            </motion.button>
           ))}
-        </div>
+        </motion.div>
       </div>
-    </section>
+    </motion.section>
   );
 }
 

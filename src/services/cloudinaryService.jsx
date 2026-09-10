@@ -32,9 +32,7 @@ export async function uploadImage(file) {
   if (!response.ok) {
     console.error("Cloudinary image error:", data);
 
-    throw new Error(
-      data?.error?.message || "Image upload failed.",
-    );
+    throw new Error(data?.error?.message || "Image upload failed.");
   }
 
   return data.secure_url;
@@ -57,13 +55,24 @@ export async function uploadMultipleImages(files = []) {
 }
 
 // ==========================================
-// UPLOAD OWNERSHIP DOCUMENT
-// Supports PDF, JPG, PNG, etc.
+// UPLOAD VERIFICATION DOCUMENT
+//
+// Supports:
+// - PDF
+// - JPG
+// - JPEG
+// - PNG
+// - WEBP
+//
+// Used for:
+// - Landlord identification
+// - Agent CAC certificate
+// - Other verification documents
 // ==========================================
 
-export async function uploadOwnershipDocument(file) {
+export async function uploadVerificationDocument(file) {
   if (!file) {
-    throw new Error("No ownership document selected.");
+    throw new Error("No verification document selected.");
   }
 
   const allowedTypes = [
@@ -74,9 +83,14 @@ export async function uploadOwnershipDocument(file) {
   ];
 
   if (!allowedTypes.includes(file.type)) {
-    throw new Error(
-      "Ownership document must be a PDF, JPG, PNG or WEBP file.",
-    );
+    throw new Error("Document must be a PDF, JPG, JPEG, PNG or WEBP file.");
+  }
+
+  // 10 MB maximum
+  const maxSize = 10 * 1024 * 1024;
+
+  if (file.size > maxSize) {
+    throw new Error("Document must not be larger than 10MB.");
   }
 
   const formData = new FormData();
@@ -95,11 +109,10 @@ export async function uploadOwnershipDocument(file) {
   const data = await response.json();
 
   if (!response.ok) {
-    console.error("Cloudinary document error:", data);
+    console.error("Cloudinary verification document error:", data);
 
     throw new Error(
-      data?.error?.message ||
-        "Ownership document upload failed.",
+      data?.error?.message || "Verification document upload failed.",
     );
   }
 
@@ -108,5 +121,17 @@ export async function uploadOwnershipDocument(file) {
     publicId: data.public_id,
     resourceType: data.resource_type,
     format: data.format,
+    originalFilename: data.original_filename || file.name,
   };
+}
+
+// ==========================================
+// UPLOAD OWNERSHIP DOCUMENT
+//
+// Kept for compatibility with your existing
+// property upload functionality.
+// ==========================================
+
+export async function uploadOwnershipDocument(file) {
+  return uploadVerificationDocument(file);
 }

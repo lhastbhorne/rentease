@@ -27,29 +27,77 @@ export async function registerUser({
   role,
   ...extraData
 }) {
-  const userCredential = await createUserWithEmailAndPassword(
-    auth,
-    email,
-    password
-  );
+  if (!fullName?.trim()) {
+    throw new Error("Full name is required.");
+  }
+
+  if (!email?.trim()) {
+    throw new Error("Email address is required.");
+  }
+
+  if (!password) {
+    throw new Error("Password is required.");
+  }
+
+  if (!role) {
+    throw new Error("User role is required.");
+  }
+
+  // ==========================================
+  // CREATE FIREBASE AUTH ACCOUNT
+  // ==========================================
+
+  const userCredential =
+    await createUserWithEmailAndPassword(
+      auth,
+      email.trim().toLowerCase(),
+      password,
+    );
 
   const user = userCredential.user;
 
+  // ==========================================
+  // UPDATE FIREBASE DISPLAY NAME
+  // ==========================================
+
   await updateProfile(user, {
-    displayName: fullName,
+    displayName: fullName.trim(),
   });
+
+  // ==========================================
+  // SEND EMAIL VERIFICATION
+  // ==========================================
 
   await sendEmailVerification(user);
 
-  await setDoc(doc(db, "users", user.uid), {
+  // ==========================================
+  // CREATE FIRESTORE USER PROFILE
+  // ==========================================
+
+  const userProfile = {
     uid: user.uid,
-    fullName,
-    email,
+
+    fullName: fullName.trim(),
+
+    email: email.trim().toLowerCase(),
+
     role,
+
     emailVerified: false,
+
     createdAt: serverTimestamp(),
+
+    updatedAt: serverTimestamp(),
+
+    // Additional information
+    // including verification documents
     ...extraData,
-  });
+  };
+
+  await setDoc(
+    doc(db, "users", user.uid),
+    userProfile,
+  );
 
   return user;
 }

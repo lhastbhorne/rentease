@@ -2,19 +2,19 @@ import { Link } from "react-router-dom";
 
 function Hero() {
   return (
-    <section className="bg-slate-50">
+    <section className="bg-slate-50 transition-colors duration-300 dark:bg-slate-950">
       <div className="mx-auto flex max-w-7xl flex-col-reverse items-center gap-12 px-6 py-20 md:flex-row">
         {/* Left Content */}
         <div className="flex-1 text-center md:text-left">
-          <span className="inline-block rounded-full bg-blue-100 px-4 py-2 text-sm font-semibold text-blue-600">
+          <span className="inline-block rounded-full bg-blue-100 px-4 py-2 text-sm font-semibold text-blue-600 transition-colors duration-300 dark:bg-blue-950 dark:text-blue-400">
             Trusted Rental Platform
           </span>
 
-          <h1 className="mt-6 text-4xl font-bold leading-tight text-slate-900 md:text-6xl">
+          <h1 className="mt-6 text-4xl font-bold leading-tight text-slate-900 transition-colors duration-300 dark:text-white md:text-6xl">
             Find Your Perfect Home with Confidence.
           </h1>
 
-          <p className="mt-6 text-lg leading-8 text-slate-600">
+          <p className="mt-6 text-lg leading-8 text-slate-600 transition-colors duration-300 dark:text-slate-400">
             RentEase connects tenants, landlords, and agents on one secure
             platform, making property search, applications, and rental
             management simple and stress-free.
@@ -30,7 +30,7 @@ function Hero() {
 
             <Link
               to="/register"
-              className="rounded-lg border border-blue-600 px-6 py-3 text-center font-semibold text-blue-600 transition hover:bg-blue-50"
+              className="rounded-lg border border-blue-600 px-6 py-3 text-center font-semibold text-blue-600 transition hover:bg-blue-50 dark:border-blue-500 dark:text-blue-400 dark:hover:bg-blue-950"
             >
               Get Started
             </Link>

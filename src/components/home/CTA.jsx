@@ -2,7 +2,7 @@ import { Link } from "react-router-dom";
 
 function CTA() {
   return (
-    <section className="bg-blue-600 py-20">
+    <section className="bg-blue-600 py-20 transition-colors duration-300 dark:bg-blue-700">
       <div className="mx-auto max-w-5xl px-6 text-center">
         <h2 className="text-4xl font-bold text-white">
           Ready to Find Your Perfect Home?

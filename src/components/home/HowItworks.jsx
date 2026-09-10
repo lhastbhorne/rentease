@@ -38,50 +38,46 @@ function HowItWorks() {
   ];
 
   return (
-    <section className="bg-white py-20">
+    <section className="bg-white py-20 transition-colors duration-300 dark:bg-slate-950">
       <div className="mx-auto max-w-7xl px-6">
         {/* Heading */}
-
         <div className="mx-auto mb-16 max-w-3xl text-center">
-          <h2 className="text-4xl font-bold text-slate-900">
+          <h2 className="text-4xl font-bold text-slate-900 dark:text-white">
             How RentEase Works
           </h2>
 
-          <p className="mt-4 text-lg text-slate-600">
+          <p className="mt-4 text-lg text-slate-600 dark:text-slate-400">
             Renting your next home has never been easier. Follow these four
             simple steps.
           </p>
         </div>
 
         {/* Steps */}
-
         <div className="grid gap-10 md:grid-cols-2 lg:grid-cols-4">
           {steps.map((step) => (
             <div
               key={step.id}
-              className="group rounded-2xl border border-slate-200 bg-slate-50 p-8 text-center transition hover:-translate-y-2 hover:shadow-xl"
+              className="group relative overflow-hidden rounded-2xl border border-slate-200 bg-slate-50 p-8 text-center transition-all duration-300 hover:-translate-y-2 hover:border-blue-300 hover:bg-blue-50 hover:shadow-xl dark:border-slate-800 dark:bg-slate-900 dark:hover:border-blue-800 dark:hover:bg-blue-950/40"
             >
               {/* Number */}
-
-              <div className="mx-auto mb-6 flex h-14 w-14 items-center justify-center rounded-full bg-blue-600 text-xl font-bold text-white">
+              <div className="mx-auto mb-6 flex h-14 w-14 items-center justify-center rounded-full bg-blue-600 text-xl font-bold text-white shadow-md transition-all duration-300 group-hover:scale-110 group-hover:shadow-lg group-hover:shadow-blue-500/30">
                 {step.id}
               </div>
 
               {/* Icon */}
-
-              <div className="mb-6 flex justify-center text-blue-600">
+              <div className="mb-6 flex justify-center text-blue-600 transition-transform duration-300 group-hover:scale-110 dark:text-blue-400">
                 {step.icon}
               </div>
 
               {/* Title */}
-
-              <h3 className="mb-4 text-xl font-semibold text-slate-900">
+              <h3 className="mb-4 text-xl font-semibold text-slate-900 dark:text-white">
                 {step.title}
               </h3>
 
               {/* Description */}
-
-              <p className="leading-7 text-slate-600">{step.description}</p>
+              <p className="leading-7 text-slate-600 dark:text-slate-400">
+                {step.description}
+              </p>
             </div>
           ))}
         </div>

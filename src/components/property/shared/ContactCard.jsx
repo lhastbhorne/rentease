@@ -1,80 +1,79 @@
-import { FaPhone, FaEnvelope, FaUser } from "react-icons/fa";
+import { motion } from "framer-motion";
+import { FaUser, FaCheckCircle } from "react-icons/fa";
 
-function ContactCard({ contact = {} }) {
-  const name = contact?.name || "Property Owner";
-  const phone = contact?.phone || "";
-  const email = contact?.email || "";
+function ContactCard({ property = {}, contact = {} }) {
+  // ==========================================
+  // PROPERTY MANAGER
+  // ==========================================
 
-  // Remove spaces and other characters from phone number
-  // only when a phone number actually exists.
-  const cleanPhone = phone ? phone.replace(/\s+/g, "") : "";
+  const name = property?.managerName || contact?.name || "Property Manager";
+
+  const role = property?.managerRole || contact?.role || "Property Manager";
+
+  const formattedRole =
+    role === "landlord" ? "Landlord" : role === "agent" ? "Agent" : role;
 
   return (
-    <section className="bg-white py-12">
+    <section className="bg-white py-12 transition-colors duration-300 dark:bg-slate-950">
       <div className="mx-auto max-w-7xl px-6">
-        <div className="rounded-2xl border bg-slate-50 p-8 shadow-sm">
-          <h2 className="text-2xl font-bold text-slate-800">
-            Contact Property Owner
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+          transition={{ duration: 0.45 }}
+          className="rounded-2xl border border-slate-200 bg-slate-50 p-8 shadow-sm transition-colors duration-300 dark:border-slate-800 dark:bg-slate-900"
+        >
+          {/* ========================================
+              TITLE
+          ======================================== */}
+
+          <h2 className="text-2xl font-bold text-slate-800 dark:text-white">
+            Property Manager
           </h2>
 
-          <div className="mt-6 flex flex-col gap-5">
-            {/* Name */}
-            <div className="flex items-center gap-4">
-              <div className="flex h-12 w-12 items-center justify-center rounded-full bg-blue-100 text-blue-600">
-                <FaUser />
-              </div>
+          {/* ========================================
+              MANAGER INFORMATION
+          ======================================== */}
 
-              <div>
-                <p className="text-sm text-slate-500">Property Owner</p>
+          <div className="mt-6 flex items-center gap-4">
+            {/* Profile Icon */}
 
-                <p className="font-semibold text-slate-800">{name}</p>
-              </div>
+            <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-blue-100 text-blue-600 dark:bg-blue-950/50 dark:text-blue-400">
+              <FaUser className="text-xl" />
             </div>
 
-            {/* Phone */}
-            {phone && (
-              <a
-                href={`tel:${cleanPhone}`}
-                className="flex items-center gap-4 hover:text-blue-600"
-              >
-                <div className="flex h-12 w-12 items-center justify-center rounded-full bg-blue-100 text-blue-600">
-                  <FaPhone />
-                </div>
+            {/* Manager Details */}
 
-                <div>
-                  <p className="text-sm text-slate-500">Phone</p>
+            <div>
+              <div className="flex items-center gap-2">
+                <p className="font-semibold text-slate-800 dark:text-white">
+                  {name}
+                </p>
 
-                  <p className="font-semibold text-slate-800">{phone}</p>
-                </div>
-              </a>
-            )}
+                <FaCheckCircle
+                  className="text-blue-600 dark:text-blue-400"
+                  title="Verified property manager"
+                />
+              </div>
 
-            {/* Email */}
-            {email && (
-              <a
-                href={`mailto:${email}`}
-                className="flex items-center gap-4 hover:text-blue-600"
-              >
-                <div className="flex h-12 w-12 items-center justify-center rounded-full bg-blue-100 text-blue-600">
-                  <FaEnvelope />
-                </div>
-
-                <div>
-                  <p className="text-sm text-slate-500">Email</p>
-
-                  <p className="font-semibold text-slate-800">{email}</p>
-                </div>
-              </a>
-            )}
-
-            {/* No contact information */}
-            {!phone && !email && (
-              <p className="text-slate-500">
-                Contact information is currently unavailable.
+              <p className="mt-1 text-sm capitalize text-slate-500 dark:text-slate-400">
+                {formattedRole}
               </p>
-            )}
+            </div>
           </div>
-        </div>
+
+          {/* ========================================
+              PLATFORM COMMUNICATION
+          ======================================== */}
+
+          <div className="mt-6 rounded-xl border border-blue-100 bg-blue-50 p-4 dark:border-blue-900/40 dark:bg-blue-950/20">
+            <p className="text-sm leading-6 text-blue-700 dark:text-blue-300">
+              For your safety, direct contact details are kept private.
+              Inspection requests and other communication are handled securely
+              through RentEase.
+            </p>
+          </div>
+        </motion.div>
       </div>
     </section>
   );
