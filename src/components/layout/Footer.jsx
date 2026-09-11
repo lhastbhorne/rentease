@@ -81,7 +81,7 @@ function Footer() {
           </div>
 
           {/* Newsletter */}
-          <NewsLetterForm />
+          <NewsletterForm />
         </div>
 
         <div className="mt-14 border-t border-slate-700 pt-8 text-center text-sm">
