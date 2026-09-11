@@ -1,4 +1,4 @@
-function NewsletterForm() {
+function NewsLetterForm() {
   return (
     <div>
       <h3 className="mb-6 text-xl font-semibold text-white">
@@ -26,4 +26,4 @@ function NewsletterForm() {
   );
 }
 
-export default NewsletterForm;
+export default NewsLetterForm;
