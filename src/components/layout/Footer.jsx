@@ -9,7 +9,7 @@ import {
   FaLocationDot,
 } from "react-icons/fa6";
 
-import NewsletterForm from "./NewsletterForm";
+import NewsletterForm from "./NewsLetterForm";
 import FooterLinks from "./FooterLinks";
 
 function Footer() {
@@ -81,7 +81,7 @@ function Footer() {
           </div>
 
           {/* Newsletter */}
-          <NewsletterForm />
+          <NewsLetterForm />
         </div>
 
         <div className="mt-14 border-t border-slate-700 pt-8 text-center text-sm">
