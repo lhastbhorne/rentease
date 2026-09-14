@@ -12,6 +12,7 @@ import {
   FaExclamationCircle,
   FaArrowRight,
   FaReceipt,
+  FaLock,
 } from "react-icons/fa";
 
 import DashboardLayout from "../../components/dashboard/DashboardLayout";
@@ -132,17 +133,11 @@ function Payments() {
   const [paying, setPaying] = useState(false);
 
   const [showCheckout, setShowCheckout] = useState(false);
-
   const [paymentSuccess, setPaymentSuccess] = useState(false);
 
   const [error, setError] = useState("");
 
-  const [cardData, setCardData] = useState({
-    cardNumber: "",
-    expiry: "",
-    cvv: "",
-    cardName: "",
-  });
+  const [paymentReference, setPaymentReference] = useState("");
 
   // =====================================================
   // LOAD TENANCIES + PAYMENTS
@@ -217,96 +212,102 @@ function Payments() {
     daysUntilDue <= 0;
 
   // =====================================================
-  // OPEN CHECKOUT
+  // PAYSTACK PAYMENT
   // =====================================================
 
-  function openCheckout() {
+  async function startPaystackPayment() {
     if (!selectedTenancy) {
-      alert("Please select an active tenancy.");
+      setError("Please select an active tenancy.");
       return;
     }
 
     if (!canPay) {
-      alert("Your rent is not due yet.");
+      setError("Your rent is not due yet.");
       return;
     }
 
-    setError("");
-    setPaymentSuccess(false);
-
-    setCardData({
-      cardNumber: "",
-      expiry: "",
-      cvv: "",
-      cardName: "",
-    });
-
-    setShowCheckout(true);
-  }
-
-  // =====================================================
-  // CARD INPUT
-  // =====================================================
-
-  function handleCardChange(event) {
-    const { name, value } = event.target;
-
-    setCardData((previous) => ({
-      ...previous,
-      [name]: value,
-    }));
-  }
-
-  // =====================================================
-  // DEMO PAYMENT
-  // =====================================================
-
-  async function processPayment(event) {
-    event.preventDefault();
-
-    if (!selectedTenancy) {
-      return;
-    }
-
-    if (
-      !cardData.cardNumber ||
-      !cardData.expiry ||
-      !cardData.cvv ||
-      !cardData.cardName
-    ) {
-      setError("Please complete all card details.");
-      return;
-    }
-
-    if (cardData.cardNumber.replace(/\s/g, "").length < 12) {
-      setError("Please enter a valid demo card number.");
+    if (!user?.email) {
+      setError("Your account email could not be found.");
       return;
     }
 
     try {
       setPaying(true);
       setError("");
+      setPaymentSuccess(false);
+      setPaymentReference("");
 
-      // Simulate payment gateway delay.
-      await new Promise((resolve) => setTimeout(resolve, 1500));
+      const reference = `RENTEASE-RENT-${Date.now()}-${Math.random()
+        .toString(36)
+        .substring(2, 8)
+        .toUpperCase()}`;
 
-      const paymentReference = `RENT-DEMO-${Date.now()}`;
-
-      await createRecurringRentPayment({
-        tenancy: selectedTenancy,
-        tenantId: user.uid,
-        paymentReference,
-        paymentMethod: "demo-card",
+      const response = await fetch("/.netlify/functions/paystack-initialize", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          email: user.email,
+          amount: totalAmount,
+          reference,
+          metadata: {
+            paymentType: "rent",
+            tenantId: user.uid,
+            tenancyId: selectedTenancy.id,
+            propertyId: selectedTenancy.propertyId || "",
+            propertyTitle: selectedTenancy.propertyTitle || "Rental Property",
+            tenantName: selectedTenancy.tenantName || user.displayName || "",
+            rentFrequency: selectedTenancy.rentFrequency || "",
+            callbackUrl: `${window.location.origin}/payment/callback`,
+          },
+        }),
       });
 
-      setPaymentSuccess(true);
+      const data = await response.json();
 
-      await loadData();
+      if (!response.ok || !data.status) {
+        throw new Error(
+          data.message || "Unable to initialize Paystack payment.",
+        );
+      }
+
+      const authorizationUrl = data?.data?.authorization_url;
+      const returnedReference = data?.data?.reference;
+
+      if (!authorizationUrl || !returnedReference) {
+        throw new Error("Paystack did not return a valid payment checkout.");
+      }
+
+      setPaymentReference(returnedReference);
+
+      /*
+       * Save the payment information temporarily so the
+       * callback page knows what tenancy the payment belongs to.
+       */
+      sessionStorage.setItem(
+        "rentease_pending_rent_payment",
+        JSON.stringify({
+          reference: returnedReference,
+          tenancyId: selectedTenancy.id,
+          tenantId: user.uid,
+          amount: totalAmount,
+          propertyId: selectedTenancy.propertyId || "",
+          propertyTitle: selectedTenancy.propertyTitle || "Rental Property",
+          rentFrequency: selectedTenancy.rentFrequency || "",
+        }),
+      );
+
+      /*
+       * Paystack handles the actual card details.
+       * RentEase never receives the card number, CVV,
+       * or expiry date.
+       */
+      window.location.href = authorizationUrl;
     } catch (err) {
-      console.error("Rent payment error:", err);
+      console.error("Paystack initialization error:", err);
 
-      setError(err.message || "Unable to process rent payment.");
-    } finally {
+      setError(err.message || "Unable to start rent payment.");
       setPaying(false);
     }
   }
@@ -331,13 +332,14 @@ function Payments() {
   if (loading) {
     return (
       <DashboardLayout>
-        <div className="min-h-screen bg-slate-50 dark:bg-slate-950 p-4 sm:p-6 lg:p-8">
+        <div className="min-h-screen bg-slate-50 p-4 dark:bg-slate-950 sm:p-6 lg:p-8">
           <div className="mx-auto max-w-7xl">
             <div className="animate-pulse space-y-6">
               <div className="h-8 w-48 rounded-lg bg-slate-200 dark:bg-slate-800" />
 
               <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
                 <div className="h-64 rounded-2xl bg-slate-200 dark:bg-slate-800" />
+
                 <div className="h-64 rounded-2xl bg-slate-200 dark:bg-slate-800 lg:col-span-2" />
               </div>
             </div>
@@ -354,7 +356,7 @@ function Payments() {
   if (!tenancies.length) {
     return (
       <DashboardLayout>
-        <div className="min-h-screen bg-slate-50 dark:bg-slate-950 p-4 sm:p-6 lg:p-8">
+        <div className="min-h-screen bg-slate-50 p-4 dark:bg-slate-950 sm:p-6 lg:p-8">
           <div className="mx-auto flex min-h-[70vh] max-w-2xl items-center justify-center">
             <motion.div
               initial={{
@@ -392,12 +394,10 @@ function Payments() {
 
   return (
     <DashboardLayout>
-      <div className="min-h-screen bg-slate-50 dark:bg-slate-950 p-4 sm:p-6 lg:p-8">
+      <div className="min-h-screen bg-slate-50 p-4 dark:bg-slate-950 sm:p-6 lg:p-8">
         <div className="mx-auto max-w-7xl">
-          {/* ==========================================
-              HEADER
-          ========================================== */}
-
+          // ===================================================== // HEADER //
+          =====================================================
           <motion.div
             initial={{
               opacity: 0,
@@ -417,11 +417,8 @@ function Payments() {
               Manage your rent payments and view your payment history.
             </p>
           </motion.div>
-
-          {/* ==========================================
-              ERROR
-          ========================================== */}
-
+          // ===================================================== // ERROR //
+          =====================================================
           <AnimatePresence>
             {error && (
               <motion.div
@@ -453,11 +450,8 @@ function Payments() {
               </motion.div>
             )}
           </AnimatePresence>
-
-          {/* ==========================================
-              TENANCY SELECTOR
-          ========================================== */}
-
+          // ===================================================== // TENANCY
+          SELECTOR // =====================================================
           {tenancies.length > 1 && (
             <motion.div
               initial={{
@@ -488,14 +482,11 @@ function Payments() {
               </select>
             </motion.div>
           )}
-
-          {/* ==========================================
-              TOP CARDS
-          ========================================== */}
-
+          // ===================================================== // TOP CARDS
+          // =====================================================
           <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-            {/* RENT SUMMARY */}
-
+            // ===================================================== // RENT
+            SUMMARY // =====================================================
             <motion.div
               initial={{
                 opacity: 0,
@@ -537,9 +528,8 @@ function Payments() {
                 </div>
               </div>
             </motion.div>
-
-            {/* DUE DATE */}
-
+            // ===================================================== // DUE DATE
+            // =====================================================
             <motion.div
               initial={{
                 opacity: 0,
@@ -592,9 +582,8 @@ function Payments() {
                 )}
               </div>
             </motion.div>
-
-            {/* PAYMENT STATUS */}
-
+            // ===================================================== // PAYMENT
+            STATUS // =====================================================
             <motion.div
               initial={{
                 opacity: 0,
@@ -635,11 +624,8 @@ function Payments() {
               </p>
             </motion.div>
           </div>
-
-          {/* ==========================================
-              CURRENT RENT PERIOD
-          ========================================== */}
-
+          // ===================================================== // CURRENT
+          RENT PERIOD // =====================================================
           <motion.div
             initial={{
               opacity: 0,
@@ -652,7 +638,7 @@ function Payments() {
             transition={{
               delay: 0.15,
             }}
-            className="mt-6 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900"
+            className="mt-6 rounded-2xl border border-slate-200 bg-white p-6 dark:border-slate-800 dark:bg-slate-900"
           >
             <div className="flex flex-col gap-6 md:flex-row md:items-center md:justify-between">
               <div>
@@ -685,11 +671,8 @@ function Payments() {
               </div>
             </div>
           </motion.div>
-
-          {/* ==========================================
-              PAYMENT SECTION
-          ========================================== */}
-
+          // ===================================================== // PAYMENT
+          SECTION // =====================================================
           <motion.div
             initial={{
               opacity: 0,
@@ -704,8 +687,8 @@ function Payments() {
             }}
             className="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-2"
           >
-            {/* BREAKDOWN */}
-
+            // ===================================================== //
+            BREAKDOWN // =====================================================
             <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900">
               <div className="mb-6 flex items-center gap-3">
                 <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-100 text-blue-600 dark:bg-blue-950 dark:text-blue-400">
@@ -762,9 +745,8 @@ function Payments() {
                 the rental transaction.
               </div>
             </div>
-
-            {/* PAY BUTTON */}
-
+            // ===================================================== // PAY
+            BUTTON // =====================================================
             <div className="flex flex-col justify-between rounded-2xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900">
               <div>
                 <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-emerald-100 text-emerald-600 dark:bg-emerald-950 dark:text-emerald-400">
@@ -776,20 +758,36 @@ function Payments() {
                 </h2>
 
                 <p className="mt-2 text-sm leading-6 text-slate-500 dark:text-slate-400">
-                  You can make your next rent payment once the current rent
-                  period reaches its due date.
+                  You will be redirected to Paystack's secure checkout to
+                  complete your rent payment.
                 </p>
+
+                <div className="mt-5 flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
+                  <FaLock className="text-emerald-500" />
+
+                  <span>Secure payment powered by Paystack</span>
+                </div>
               </div>
 
               <div className="mt-8">
                 {canPay ? (
                   <button
                     type="button"
-                    onClick={openCheckout}
-                    className="flex w-full items-center justify-center gap-3 rounded-xl bg-blue-600 px-5 py-3.5 font-semibold text-white transition hover:bg-blue-700 active:scale-[0.99]"
+                    onClick={startPaystackPayment}
+                    disabled={paying}
+                    className="flex w-full items-center justify-center gap-3 rounded-xl bg-blue-600 px-5 py-3.5 font-semibold text-white transition hover:bg-blue-700 active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-60"
                   >
-                    <FaCreditCard />
-                    Pay Rent {formatCurrency(rentAmount)}
+                    {paying ? (
+                      <>
+                        <span className="h-5 w-5 animate-spin rounded-full border-2 border-white/30 border-t-white" />
+                        Opening Paystack...
+                      </>
+                    ) : (
+                      <>
+                        <FaCreditCard />
+                        Pay Rent {formatCurrency(rentAmount)}
+                      </>
+                    )}
                   </button>
                 ) : (
                   <button
@@ -809,11 +807,8 @@ function Payments() {
               </div>
             </div>
           </motion.div>
-
-          {/* ==========================================
-              PAYMENT HISTORY
-          ========================================== */}
-
+          // ===================================================== // PAYMENT
+          HISTORY // =====================================================
           <motion.div
             initial={{
               opacity: 0,
@@ -900,13 +895,11 @@ function Payments() {
             )}
           </motion.div>
         </div>
-
-        {/* ==========================================
-            CHECKOUT MODAL
-        ========================================== */}
-
+        // ===================================================== // PAYMENT
+        INITIALIZATION OVERLAY //
+        =====================================================
         <AnimatePresence>
-          {showCheckout && (
+          {paying && (
             <motion.div
               initial={{
                 opacity: 0,
@@ -918,7 +911,6 @@ function Payments() {
                 opacity: 0,
               }}
               className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm"
-              onClick={() => !paying && setShowCheckout(false)}
             >
               <motion.div
                 initial={{
@@ -931,215 +923,29 @@ function Payments() {
                   scale: 1,
                   y: 0,
                 }}
-                exit={{
-                  opacity: 0,
-                  scale: 0.95,
-                  y: 20,
-                }}
-                onClick={(event) => event.stopPropagation()}
-                className="w-full max-w-lg rounded-3xl bg-white shadow-2xl dark:bg-slate-900"
+                className="w-full max-w-md rounded-3xl bg-white p-8 text-center shadow-2xl dark:bg-slate-900"
               >
-                {!paymentSuccess ? (
-                  <>
-                    {/* MODAL HEADER */}
+                <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-blue-100 text-blue-600 dark:bg-blue-950 dark:text-blue-400">
+                  <FaCreditCard size={24} />
+                </div>
 
-                    <div className="flex items-center justify-between border-b border-slate-200 p-6 dark:border-slate-800">
-                      <div>
-                        <h2 className="text-xl font-bold text-slate-900 dark:text-white">
-                          Pay Rent
-                        </h2>
+                <h2 className="mt-5 text-xl font-bold text-slate-900 dark:text-white">
+                  Connecting to Paystack
+                </h2>
 
-                        <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-                          Demo checkout
-                        </p>
-                      </div>
+                <p className="mt-2 text-sm leading-6 text-slate-500 dark:text-slate-400">
+                  Please wait while we securely prepare your rent payment.
+                </p>
 
-                      <button
-                        type="button"
-                        disabled={paying}
-                        onClick={() => setShowCheckout(false)}
-                        className="flex h-9 w-9 items-center justify-center rounded-full text-slate-500 transition hover:bg-slate-100 dark:hover:bg-slate-800"
-                      >
-                        <FaTimes />
-                      </button>
-                    </div>
-
-                    {/* AMOUNT */}
-
-                    <div className="p-6">
-                      <div className="mb-6 rounded-2xl bg-slate-50 p-5 dark:bg-slate-950">
-                        <p className="text-sm text-slate-500 dark:text-slate-400">
-                          Amount to pay
-                        </p>
-
-                        <p className="mt-1 text-3xl font-bold text-slate-900 dark:text-white">
-                          {formatCurrency(totalAmount)}
-                        </p>
-
-                        <p className="mt-2 text-xs text-slate-500 dark:text-slate-400">
-                          Includes the {PLATFORM_FEE_RATE * 100}% RentEase
-                          platform fee.
-                        </p>
-                      </div>
-
-                      {/* FORM */}
-
-                      <form onSubmit={processPayment} className="space-y-4">
-                        <div>
-                          <label className="mb-2 block text-sm font-medium text-slate-700 dark:text-slate-300">
-                            Cardholder Name
-                          </label>
-
-                          <input
-                            type="text"
-                            name="cardName"
-                            value={cardData.cardName}
-                            onChange={handleCardChange}
-                            placeholder="John Doe"
-                            className="w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 outline-none focus:border-blue-500 dark:border-slate-700 dark:bg-slate-950 dark:text-white"
-                          />
-                        </div>
-
-                        <div>
-                          <label className="mb-2 block text-sm font-medium text-slate-700 dark:text-slate-300">
-                            Card Number
-                          </label>
-
-                          <input
-                            type="text"
-                            name="cardNumber"
-                            value={cardData.cardNumber}
-                            onChange={handleCardChange}
-                            placeholder="0000 0000 0000 0000"
-                            maxLength={19}
-                            className="w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 outline-none focus:border-blue-500 dark:border-slate-700 dark:bg-slate-950 dark:text-white"
-                          />
-                        </div>
-
-                        <div className="grid grid-cols-2 gap-4">
-                          <div>
-                            <label className="mb-2 block text-sm font-medium text-slate-700 dark:text-slate-300">
-                              Expiry
-                            </label>
-
-                            <input
-                              type="text"
-                              name="expiry"
-                              value={cardData.expiry}
-                              onChange={handleCardChange}
-                              placeholder="MM/YY"
-                              maxLength={5}
-                              className="w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 outline-none focus:border-blue-500 dark:border-slate-700 dark:bg-slate-950 dark:text-white"
-                            />
-                          </div>
-
-                          <div>
-                            <label className="mb-2 block text-sm font-medium text-slate-700 dark:text-slate-300">
-                              CVV
-                            </label>
-
-                            <input
-                              type="password"
-                              name="cvv"
-                              value={cardData.cvv}
-                              onChange={handleCardChange}
-                              placeholder="123"
-                              maxLength={4}
-                              className="w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 outline-none focus:border-blue-500 dark:border-slate-700 dark:bg-slate-950 dark:text-white"
-                            />
-                          </div>
-                        </div>
-
-                        {/* ERROR */}
-
-                        {error && (
-                          <div className="rounded-xl bg-red-50 p-3 text-sm text-red-600 dark:bg-red-950/30 dark:text-red-400">
-                            {error}
-                          </div>
-                        )}
-
-                        <button
-                          type="submit"
-                          disabled={paying}
-                          className="flex w-full items-center justify-center gap-3 rounded-xl bg-blue-600 px-5 py-3.5 font-semibold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
-                        >
-                          {paying ? (
-                            <>
-                              <span className="h-5 w-5 animate-spin rounded-full border-2 border-white/30 border-t-white" />
-                              Processing...
-                            </>
-                          ) : (
-                            <>
-                              <FaCreditCard />
-                              Pay {formatCurrency(totalAmount)}
-                            </>
-                          )}
-                        </button>
-                      </form>
-
-                      <p className="mt-4 text-center text-xs text-slate-400">
-                        This is currently a demo payment flow. Paystack will be
-                        integrated for production payments.
-                      </p>
-                    </div>
-                  </>
-                ) : (
-                  /* ====================================
-                     SUCCESS
-                  ==================================== */
-
-                  <div className="p-8 text-center">
-                    <motion.div
-                      initial={{
-                        scale: 0,
-                      }}
-                      animate={{
-                        scale: 1,
-                      }}
-                      className="mx-auto flex h-20 w-20 items-center justify-center rounded-full bg-emerald-100 text-emerald-600 dark:bg-emerald-950 dark:text-emerald-400"
-                    >
-                      <FaCheckCircle size={40} />
-                    </motion.div>
-
-                    <h2 className="mt-6 text-2xl font-bold text-slate-900 dark:text-white">
-                      Rent Payment Successful
-                    </h2>
-
-                    <p className="mt-3 text-slate-500 dark:text-slate-400">
-                      Your rent payment has been recorded successfully.
-                    </p>
-
-                    <div className="mt-6 rounded-2xl bg-slate-50 p-5 text-left dark:bg-slate-950">
-                      <div className="flex justify-between text-sm">
-                        <span className="text-slate-500 dark:text-slate-400">
-                          Amount
-                        </span>
-
-                        <span className="font-semibold text-slate-900 dark:text-white">
-                          {formatCurrency(totalAmount)}
-                        </span>
-                      </div>
-
-                      <div className="mt-3 flex justify-between text-sm">
-                        <span className="text-slate-500 dark:text-slate-400">
-                          Next due date
-                        </span>
-
-                        <span className="font-semibold text-slate-900 dark:text-white">
-                          {formatDate(selectedTenancy?.nextRentDueDate)}
-                        </span>
-                      </div>
-                    </div>
-
-                    <button
-                      type="button"
-                      onClick={() => setShowCheckout(false)}
-                      className="mt-6 w-full rounded-xl bg-blue-600 px-5 py-3.5 font-semibold text-white transition hover:bg-blue-700"
-                    >
-                      Done
-                    </button>
-                  </div>
+                {paymentReference && (
+                  <p className="mt-4 break-all text-xs text-slate-400">
+                    Reference: {paymentReference}
+                  </p>
                 )}
+
+                <div className="mt-6 flex justify-center">
+                  <span className="h-7 w-7 animate-spin rounded-full border-2 border-slate-200 border-t-blue-600 dark:border-slate-700 dark:border-t-blue-400" />
+                </div>
               </motion.div>
             </motion.div>
           )}

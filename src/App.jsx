@@ -60,7 +60,7 @@ import TenantProfile from "./pages/tenant/Profile";
 import TenantSettings from "./pages/tenant/Settings";
 import ReportUser from "./pages/tenant/ReportUser";
 import Inspections from "./pages/tenant/Inspections"
-
+import PaymentCallback from "./pages/tenant/PaymentCallback";
 
 // =====================================================
 // LANDLORD
@@ -238,6 +238,14 @@ function App() {
               <TenantRoute>
                 <Payments />
               </TenantRoute>
+            }
+          />
+          <Route
+            path="/payment/callback"
+            element={
+              <ProtectedRoute>
+                <PaymentCallback />
+              </ProtectedRoute>
             }
           />
           <Route
