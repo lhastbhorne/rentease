@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion } from "framer-motion";
 
 import {
   FaMapMarkerAlt,
@@ -13,7 +13,6 @@ import {
   FaFileAlt,
   FaCreditCard,
   FaLock,
-  FaTimes,
 } from "react-icons/fa";
 
 import DashboardLayout from "../../components/dashboard/DashboardLayout";
@@ -21,10 +20,7 @@ import DashboardLayout from "../../components/dashboard/DashboardLayout";
 import {
   getMyApplications,
   expireApplicationPayment,
-  markApplicationPaymentCompleted,
 } from "../../firebase/applicationService";
-
-import { createPayment } from "../../firebase/paymentService";
 
 import { useAuth } from "../../contexts/AuthContext";
 
@@ -34,24 +30,18 @@ function Applications() {
   const [applications, setApplications] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  const [checkoutApplication, setCheckoutApplication] = useState(null);
-  const [paying, setPaying] = useState(false);
-  const [paymentSuccess, setPaymentSuccess] = useState(false);
+  const [payingApplicationId, setPayingApplicationId] = useState(null);
 
-  const [cardData, setCardData] = useState({
-    cardNumber: "",
-    expiry: "",
-    cvv: "",
-    cardName: "",
-  });
+  const [error, setError] = useState("");
 
   useEffect(() => {
     async function loadApplications() {
       try {
+        setLoading(true);
+        setError("");
+
         const data = await getMyApplications(user.uid);
 
-        // Check approved applications for
-        // expired payment deadlines.
         const checkedApplications = await Promise.all(
           data.map(async (application) => {
             try {
@@ -77,6 +67,8 @@ function Applications() {
         setApplications(checkedApplications);
       } catch (error) {
         console.error("Error loading applications:", error);
+
+        setError(error.message || "Unable to load your applications.");
       } finally {
         setLoading(false);
       }
@@ -87,11 +79,11 @@ function Applications() {
     }
   }, [user]);
 
-  // ==========================================
-  // OPEN DEMO CHECKOUT
-  // ==========================================
+  function getApplicationPaymentAmount(application) {
+    return Number(application.paymentAmount || application.propertyPrice || 0);
+  }
 
-  function openCheckout(application) {
+  function openPaystackCheckout(application) {
     if (
       application.status !== "approved" ||
       application.paymentStatus !== "pending"
@@ -106,116 +98,118 @@ function Applications() {
       : null;
 
     if (deadline && Date.now() > deadline) {
-      alert("The payment deadline for this application has expired.");
+      setError("The payment deadline for this application has expired.");
       return;
     }
 
-    setCheckoutApplication(application);
+    const amount = getApplicationPaymentAmount(application);
+
+    if (!amount || amount <= 0) {
+      setError("The rent amount for this application is invalid.");
+      return;
+    }
+
+    if (!user?.email) {
+      setError("Your account email could not be found.");
+      return;
+    }
+
+    startPaystackPayment(application, amount);
   }
 
-  function handleCardChange(event) {
-    const { name, value } = event.target;
-
-    setCardData((previous) => ({
-      ...previous,
-      [name]: value,
-    }));
-  }
-
-  async function processDemoPayment(event) {
-    event.preventDefault();
-
-    if (!checkoutApplication) return;
-
-    if (
-      !cardData.cardNumber ||
-      !cardData.expiry ||
-      !cardData.cvv ||
-      !cardData.cardName
-    ) {
-      alert("Please complete all demo card details.");
-      return;
-    }
-
-    if (cardData.cardNumber.replace(/\s/g, "").length < 12) {
-      alert("Please enter a valid demo card number.");
-      return;
-    }
-
+  async function startPaystackPayment(application, amount) {
     try {
-      setPaying(true);
+      setPayingApplicationId(application.id);
+      setError("");
 
-      // Simulate a real gateway processing delay.
-      await new Promise((resolve) => setTimeout(resolve, 1800));
+      const reference = `RENTEASE-APPLICATION-${Date.now()}-${Math.random()
+        .toString(36)
+        .substring(2, 8)
+        .toUpperCase()}`;
 
-      const reference = `RENT-DEMO-${Date.now()}`;
+      const response = await fetch("/.netlify/functions/paystack-initialize", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          email: user.email,
+          amount,
+          reference,
+          metadata: {
+            paymentType: "application_initial_rent",
 
-      // This performs the important final transition:
-      // payment → active tenancy → occupied property.
-      const result = await markApplicationPaymentCompleted(
-        checkoutApplication.id,
-        reference,
-      );
+            applicationId: application.id,
 
-      // Create the demo payment record after the tenancy exists.
-      await createPayment({
-        tenantId: user.uid,
-        tenantName: checkoutApplication.tenantName || user.fullName || "",
-        landlordId: checkoutApplication.landlordId || "",
-        propertyId: checkoutApplication.propertyId || "",
-        propertyTitle: checkoutApplication.propertyTitle || "",
-        tenancyId: result.tenancyId,
-        amount:
-          Number(checkoutApplication.paymentAmount) ||
-          Number(checkoutApplication.propertyPrice) ||
-          0,
-        currency: "NGN",
-        paymentType: "rent",
-        reference,
-        paymentMethod: "demo-card",
-        status: "successful",
+            tenantId: user.uid,
+
+            tenantName:
+              application.tenantName || user.displayName || user.fullName || "",
+
+            propertyId: application.propertyId || "",
+
+            propertyTitle: application.propertyTitle || "",
+
+            landlordId: application.landlordId || "",
+
+            propertyPrice: application.propertyPrice || "",
+
+            paymentAmount: application.paymentAmount || amount,
+
+            callbackUrl: `${window.location.origin}/payment/callback`,
+          },
+        }),
       });
 
-      setApplications((previous) =>
-        previous.map((item) =>
-          item.id === checkoutApplication.id
-            ? {
-                ...item,
-                status: "approved",
-                paymentStatus: "paid",
-                paymentReference: reference,
-                paymentDeadline: null,
-                reservationStatus: "completed",
-                tenancyStatus: "active",
-                tenancyId: result.tenancyId,
-              }
-            : item,
-        ),
+      const data = await response.json();
+
+      if (!response.ok || !data.status) {
+        throw new Error(
+          data.message || "Unable to initialize Paystack payment.",
+        );
+      }
+
+      const authorizationUrl = data?.data?.authorization_url;
+
+      const returnedReference = data?.data?.reference;
+
+      if (!authorizationUrl || !returnedReference) {
+        throw new Error("Paystack did not return a valid checkout URL.");
+      }
+
+      sessionStorage.setItem(
+        "rentease_pending_application_payment",
+        JSON.stringify({
+          paymentType: "application_initial_rent",
+
+          reference: returnedReference,
+
+          applicationId: application.id,
+
+          tenantId: user.uid,
+
+          amount,
+
+          propertyId: application.propertyId || "",
+
+          propertyTitle: application.propertyTitle || "",
+
+          landlordId: application.landlordId || "",
+
+          tenantName:
+            application.tenantName || user.displayName || user.fullName || "",
+        }),
       );
 
-      setPaymentSuccess(true);
-
-      setTimeout(() => {
-        setCheckoutApplication(null);
-        setPaymentSuccess(false);
-        setCardData({
-          cardNumber: "",
-          expiry: "",
-          cvv: "",
-          cardName: "",
-        });
-      }, 2200);
+      window.location.href = authorizationUrl;
     } catch (error) {
-      console.error("Demo payment error:", error);
-      alert(error.message || "Demo payment failed. Please try again.");
-    } finally {
-      setPaying(false);
+      console.error("Paystack initialization error:", error);
+
+      setError(error.message || "Unable to start payment.");
+
+      setPayingApplicationId(null);
     }
   }
-
-  // ==========================================
-  // STATUS
-  // ==========================================
 
   function getApplicationStatusStyle(status) {
     switch (status) {
@@ -234,10 +228,6 @@ function Applications() {
     }
   }
 
-  // ==========================================
-  // PAYMENT STATUS
-  // ==========================================
-
   function getPaymentStatusStyle(status) {
     switch (status) {
       case "paid":
@@ -253,10 +243,6 @@ function Applications() {
         return "bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400";
     }
   }
-
-  // ==========================================
-  // TENANCY STATUS
-  // ==========================================
 
   function getTenancyStatusStyle(status) {
     switch (status) {
@@ -276,10 +262,6 @@ function Applications() {
         return "bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400";
     }
   }
-
-  // ==========================================
-  // FORMAT DATE
-  // ==========================================
 
   function formatDate(value) {
     if (!value) {
@@ -306,10 +288,6 @@ function Applications() {
       year: "numeric",
     });
   }
-
-  // ==========================================
-  // FORMAT PAYMENT DEADLINE
-  // ==========================================
 
   function getDeadlineText(deadline) {
     if (!deadline) {
@@ -346,10 +324,6 @@ function Applications() {
     return `${hours} hour${hours !== 1 ? "s" : ""} remaining`;
   }
 
-  // ==========================================
-  // FORMAT MONEY
-  // ==========================================
-
   function formatMoney(amount) {
     const numericAmount =
       typeof amount === "string"
@@ -363,17 +337,9 @@ function Applications() {
     return `₦${numericAmount.toLocaleString("en-NG")}`;
   }
 
-  // ==========================================
-  // RENDER
-  // ==========================================
-
   return (
     <DashboardLayout>
       <div className="mx-auto max-w-6xl">
-        {/* ======================================
-            HEADER
-        ====================================== */}
-
         <motion.div
           initial={{
             opacity: 0,
@@ -395,9 +361,21 @@ function Applications() {
           </p>
         </motion.div>
 
-        {/* ======================================
-            LOADING
-        ====================================== */}
+        {error && (
+          <div className="mb-6 flex items-start gap-3 rounded-xl border border-red-200 bg-red-50 p-4 text-red-700 dark:border-red-900/50 dark:bg-red-900/20 dark:text-red-400">
+            <FaTimesCircle className="mt-1 shrink-0" />
+
+            <p className="text-sm">{error}</p>
+
+            <button
+              type="button"
+              onClick={() => setError("")}
+              className="ml-auto text-red-500 hover:text-red-700"
+            >
+              ×
+            </button>
+          </div>
+        )}
 
         {loading ? (
           <div className="rounded-2xl bg-white p-8 text-center shadow-sm dark:bg-slate-900">
@@ -408,10 +386,6 @@ function Applications() {
             </p>
           </div>
         ) : applications.length === 0 ? (
-          /* ====================================
-             EMPTY STATE
-          ==================================== */
-
           <motion.div
             initial={{
               opacity: 0,
@@ -436,10 +410,6 @@ function Applications() {
             </p>
           </motion.div>
         ) : (
-          /* ====================================
-             APPLICATIONS
-          ==================================== */
-
           <div className="space-y-6">
             {applications.map((application, index) => {
               const isApproved = application.status === "approved";
@@ -452,6 +422,8 @@ function Applications() {
               const tenancyActive = application.tenancyStatus === "active";
 
               const paymentExpired = application.paymentStatus === "expired";
+
+              const isPaying = payingApplicationId === application.id;
 
               return (
                 <motion.div
@@ -469,15 +441,9 @@ function Applications() {
                   }}
                   className="overflow-hidden rounded-2xl bg-white shadow-sm dark:bg-slate-900"
                 >
-                  {/* =================================
-                        PROPERTY HEADER
-                    ================================= */}
-
                   <div className="p-6">
                     <div className="flex flex-col justify-between gap-5 md:flex-row md:items-start">
                       <div className="flex gap-4">
-                        {/* Property Image */}
-
                         {application.propertyImage ? (
                           <img
                             src={application.propertyImage}
@@ -502,8 +468,6 @@ function Applications() {
                         </div>
                       </div>
 
-                      {/* Application Status */}
-
                       <span
                         className={`w-fit rounded-full px-4 py-2 text-sm font-semibold capitalize ${getApplicationStatusStyle(
                           application.status,
@@ -512,10 +476,6 @@ function Applications() {
                         {application.status || "pending"}
                       </span>
                     </div>
-
-                    {/* =================================
-                          LOCATION
-                      ================================= */}
 
                     {(application.propertyAreaName ||
                       application.propertyCity ||
@@ -534,10 +494,6 @@ function Applications() {
                         </span>
                       </div>
                     )}
-
-                    {/* =================================
-                          APPLICATION INFORMATION
-                      ================================= */}
 
                     <div className="mt-6 grid gap-4 border-t border-slate-200 pt-6 dark:border-slate-700 md:grid-cols-3">
                       <div>
@@ -573,10 +529,6 @@ function Applications() {
                       </div>
                     </div>
 
-                    {/* =================================
-                          MESSAGE
-                      ================================= */}
-
                     {application.message && (
                       <div className="mt-6 rounded-xl bg-slate-50 p-4 dark:bg-slate-800/60">
                         <p className="text-sm font-medium text-slate-600 dark:text-slate-300">
@@ -588,10 +540,6 @@ function Applications() {
                         </p>
                       </div>
                     )}
-
-                    {/* =================================
-                          APPROVED PAYMENT SECTION
-                      ================================= */}
 
                     {isApproved && (
                       <div className="mt-6 rounded-2xl border border-green-200 bg-green-50 p-5 dark:border-green-900/50 dark:bg-green-900/10">
@@ -613,8 +561,6 @@ function Applications() {
                             </div>
                           </div>
 
-                          {/* Payment Status */}
-
                           <span
                             className={`w-fit rounded-full px-3 py-1.5 text-xs font-semibold capitalize ${getPaymentStatusStyle(
                               application.paymentStatus,
@@ -624,8 +570,6 @@ function Applications() {
                               "Not started"}
                           </span>
                         </div>
-
-                        {/* Payment Information */}
 
                         <div className="mt-5 grid gap-4 border-t border-green-200 pt-5 dark:border-green-900/50 md:grid-cols-3">
                           <div>
@@ -668,8 +612,6 @@ function Applications() {
                           </div>
                         </div>
 
-                        {/* Payment Action */}
-
                         {paymentPending && (
                           <div className="mt-5 rounded-xl bg-white p-4 dark:bg-slate-900">
                             <div className="flex items-start gap-3">
@@ -681,25 +623,40 @@ function Applications() {
                                 </p>
 
                                 <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-                                  You must complete your rent payment before the
-                                  deadline. Your tenancy will not become active
-                                  until payment has been verified.
+                                  Complete your rent payment before the
+                                  deadline. Your tenancy will become active
+                                  after the payment has been successfully
+                                  verified.
                                 </p>
                               </div>
                             </div>
 
                             <button
                               type="button"
-                              onClick={() => openCheckout(application)}
-                              className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl bg-blue-600 px-5 py-3 font-semibold text-white transition hover:bg-blue-700"
+                              onClick={() => openPaystackCheckout(application)}
+                              disabled={isPaying}
+                              className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl bg-blue-600 px-5 py-3 font-semibold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
                             >
-                              <FaCreditCard />
-                              Pay Rent Now
+                              {isPaying ? (
+                                <>
+                                  <span className="h-5 w-5 animate-spin rounded-full border-2 border-white/30 border-t-white" />
+                                  Connecting to Paystack...
+                                </>
+                              ) : (
+                                <>
+                                  <FaCreditCard />
+                                  Pay Rent Now
+                                </>
+                              )}
                             </button>
+
+                            <div className="mt-4 flex items-center justify-center gap-2 text-xs text-slate-400">
+                              <FaLock className="text-green-500" />
+
+                              <span>Secure payment powered by Paystack</span>
+                            </div>
                           </div>
                         )}
-
-                        {/* Paid */}
 
                         {isPaid && (
                           <div className="mt-5 rounded-xl bg-white p-4 dark:bg-slate-900">
@@ -712,7 +669,8 @@ function Applications() {
                                 </p>
 
                                 <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-                                  Your payment has been received.
+                                  Your payment has been received and your
+                                  tenancy activation has been completed.
                                 </p>
 
                                 {application.paymentReference && (
@@ -724,8 +682,6 @@ function Applications() {
                             </div>
                           </div>
                         )}
-
-                        {/* Expired */}
 
                         {paymentExpired && (
                           <div className="mt-5 rounded-xl bg-white p-4 dark:bg-slate-900">
@@ -748,10 +704,6 @@ function Applications() {
                         )}
                       </div>
                     )}
-
-                    {/* =================================
-                          TENANCY STATUS
-                      ================================= */}
 
                     {application.tenancyStatus &&
                       application.tenancyStatus !== "not_started" && (
@@ -803,171 +755,6 @@ function Applications() {
           </div>
         )}
       </div>
-
-      {/* ==========================================
-          DEMO PAYMENT CHECKOUT
-      ========================================== */}
-
-      <AnimatePresence>
-        {checkoutApplication && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm"
-          >
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95, y: 20 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.95, y: 20 }}
-              className="relative w-full max-w-md overflow-hidden rounded-2xl bg-white shadow-2xl dark:bg-slate-900"
-            >
-              <div className="flex items-center justify-between border-b border-slate-200 p-6 dark:border-slate-800">
-                <div>
-                  <h2 className="text-xl font-bold text-slate-800 dark:text-white">
-                    RentEase Checkout
-                  </h2>
-                  <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-                    Demo payment gateway
-                  </p>
-                </div>
-
-                {!paying && !paymentSuccess && (
-                  <button
-                    type="button"
-                    onClick={() => setCheckoutApplication(null)}
-                    className="rounded-full p-2 text-slate-400 transition hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-slate-800 dark:hover:text-white"
-                  >
-                    <FaTimes />
-                  </button>
-                )}
-              </div>
-
-              {paymentSuccess ? (
-                <div className="p-8 text-center">
-                  <motion.div
-                    initial={{ scale: 0 }}
-                    animate={{ scale: 1 }}
-                    transition={{ type: "spring", stiffness: 200 }}
-                  >
-                    <FaCheckCircle className="mx-auto text-6xl text-green-500" />
-                  </motion.div>
-
-                  <h2 className="mt-5 text-2xl font-bold text-slate-800 dark:text-white">
-                    Payment Successful!
-                  </h2>
-
-                  <p className="mt-3 text-sm text-slate-500 dark:text-slate-400">
-                    Your payment has been recorded and your tenancy is now
-                    active.
-                  </p>
-                </div>
-              ) : (
-                <form onSubmit={processDemoPayment} className="p-6">
-                  <div className="mb-6 rounded-xl bg-slate-50 p-4 dark:bg-slate-800">
-                    <p className="text-sm text-slate-500 dark:text-slate-400">
-                      {checkoutApplication.propertyTitle}
-                    </p>
-
-                    <div className="mt-2 flex items-center justify-between">
-                      <span className="text-sm text-slate-500 dark:text-slate-400">
-                        Rent
-                      </span>
-                      <span className="text-xl font-bold text-slate-800 dark:text-white">
-                        {formatMoney(
-                          checkoutApplication.paymentAmount ||
-                            checkoutApplication.propertyPrice,
-                        )}
-                      </span>
-                    </div>
-                  </div>
-
-                  <div className="mb-4">
-                    <label className="mb-2 block text-sm font-medium text-slate-700 dark:text-slate-300">
-                      Card Number
-                    </label>
-                    <div className="relative">
-                      <FaCreditCard className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-                      <input
-                        name="cardNumber"
-                        value={cardData.cardNumber}
-                        onChange={handleCardChange}
-                        placeholder="4111 1111 1111 1111"
-                        maxLength={19}
-                        inputMode="numeric"
-                        className="w-full rounded-xl border border-slate-300 bg-white py-3 pl-10 pr-4 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 dark:border-slate-700 dark:bg-slate-950 dark:text-white"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="mb-4">
-                    <label className="mb-2 block text-sm font-medium text-slate-700 dark:text-slate-300">
-                      Cardholder Name
-                    </label>
-                    <input
-                      name="cardName"
-                      value={cardData.cardName}
-                      onChange={handleCardChange}
-                      placeholder="John Doe"
-                      className="w-full rounded-xl border border-slate-300 bg-white px-4 py-3 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 dark:border-slate-700 dark:bg-slate-950 dark:text-white"
-                    />
-                  </div>
-
-                  <div className="mb-6 grid grid-cols-2 gap-4">
-                    <div>
-                      <label className="mb-2 block text-sm font-medium text-slate-700 dark:text-slate-300">
-                        Expiry
-                      </label>
-                      <input
-                        name="expiry"
-                        value={cardData.expiry}
-                        onChange={handleCardChange}
-                        placeholder="12/30"
-                        maxLength={5}
-                        className="w-full rounded-xl border border-slate-300 bg-white px-4 py-3 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 dark:border-slate-700 dark:bg-slate-950 dark:text-white"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="mb-2 block text-sm font-medium text-slate-700 dark:text-slate-300">
-                        CVV
-                      </label>
-                      <input
-                        type="password"
-                        name="cvv"
-                        value={cardData.cvv}
-                        onChange={handleCardChange}
-                        placeholder="123"
-                        maxLength={4}
-                        inputMode="numeric"
-                        className="w-full rounded-xl border border-slate-300 bg-white px-4 py-3 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 dark:border-slate-700 dark:bg-slate-950 dark:text-white"
-                      />
-                    </div>
-                  </div>
-
-                  <button
-                    type="submit"
-                    disabled={paying}
-                    className="flex w-full items-center justify-center gap-2 rounded-xl bg-blue-600 py-4 font-semibold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
-                  >
-                    <FaLock />
-                    {paying
-                      ? "Processing Demo Payment..."
-                      : `Pay ${formatMoney(
-                          checkoutApplication.paymentAmount ||
-                            checkoutApplication.propertyPrice,
-                        )}`}
-                  </button>
-
-                  <p className="mt-4 text-center text-xs text-slate-400">
-                    Demo only — no real money will be charged.
-                  </p>
-                </form>
-              )}
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
     </DashboardLayout>
   );
 }

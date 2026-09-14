@@ -31,10 +31,6 @@ import {
   PAYMENT_STATUS,
 } from "../../firebase/rentalConstants";
 
-// =====================================================
-// HELPERS
-// =====================================================
-
 function formatCurrency(amount) {
   return `₦${Number(amount || 0).toLocaleString()}`;
 }
@@ -117,10 +113,6 @@ function getPaymentDate(payment) {
   return Number.isNaN(parsed) ? 0 : parsed;
 }
 
-// =====================================================
-// PAGE
-// =====================================================
-
 function Payments() {
   const { user } = useAuth();
 
@@ -132,16 +124,10 @@ function Payments() {
   const [loading, setLoading] = useState(true);
   const [paying, setPaying] = useState(false);
 
-  const [showCheckout, setShowCheckout] = useState(false);
-  const [paymentSuccess, setPaymentSuccess] = useState(false);
-
-  const [error, setError] = useState("");
-
+  const [showPaymentOverlay, setShowPaymentOverlay] = useState(false);
   const [paymentReference, setPaymentReference] = useState("");
 
-  // =====================================================
-  // LOAD TENANCIES + PAYMENTS
-  // =====================================================
+  const [error, setError] = useState("");
 
   async function loadData() {
     if (!user?.uid) return;
@@ -182,19 +168,11 @@ function Payments() {
     loadData();
   }, [user?.uid]);
 
-  // =====================================================
-  // SELECTED TENANCY
-  // =====================================================
-
   const selectedTenancy = useMemo(() => {
     return (
       tenancies.find((tenancy) => tenancy.id === selectedTenancyId) || null
     );
   }, [tenancies, selectedTenancyId]);
-
-  // =====================================================
-  // RENT INFORMATION
-  // =====================================================
 
   const rentAmount = Number(selectedTenancy?.rentAmount || 0);
 
@@ -210,10 +188,6 @@ function Payments() {
     rentAmount > 0 &&
     daysUntilDue !== null &&
     daysUntilDue <= 0;
-
-  // =====================================================
-  // PAYSTACK PAYMENT
-  // =====================================================
 
   async function startPaystackPayment() {
     if (!selectedTenancy) {
@@ -233,8 +207,8 @@ function Payments() {
 
     try {
       setPaying(true);
+      setShowPaymentOverlay(true);
       setError("");
-      setPaymentSuccess(false);
       setPaymentReference("");
 
       const reference = `RENTEASE-RENT-${Date.now()}-${Math.random()
@@ -273,6 +247,7 @@ function Payments() {
       }
 
       const authorizationUrl = data?.data?.authorization_url;
+
       const returnedReference = data?.data?.reference;
 
       if (!authorizationUrl || !returnedReference) {
@@ -281,10 +256,6 @@ function Payments() {
 
       setPaymentReference(returnedReference);
 
-      /*
-       * Save the payment information temporarily so the
-       * callback page knows what tenancy the payment belongs to.
-       */
       sessionStorage.setItem(
         "rentease_pending_rent_payment",
         JSON.stringify({
@@ -298,23 +269,16 @@ function Payments() {
         }),
       );
 
-      /*
-       * Paystack handles the actual card details.
-       * RentEase never receives the card number, CVV,
-       * or expiry date.
-       */
       window.location.href = authorizationUrl;
     } catch (err) {
       console.error("Paystack initialization error:", err);
 
       setError(err.message || "Unable to start rent payment.");
+
       setPaying(false);
+      setShowPaymentOverlay(false);
     }
   }
-
-  // =====================================================
-  // PAYMENT HISTORY
-  // =====================================================
 
   const rentPayments = useMemo(() => {
     return [...payments]
@@ -324,10 +288,6 @@ function Payments() {
       )
       .sort((a, b) => getPaymentDate(b) - getPaymentDate(a));
   }, [payments]);
-
-  // =====================================================
-  // LOADING
-  // =====================================================
 
   if (loading) {
     return (
@@ -348,10 +308,6 @@ function Payments() {
       </DashboardLayout>
     );
   }
-
-  // =====================================================
-  // NO TENANCIES
-  // =====================================================
 
   if (!tenancies.length) {
     return (
@@ -388,16 +344,10 @@ function Payments() {
     );
   }
 
-  // =====================================================
-  // MAIN UI
-  // =====================================================
-
   return (
     <DashboardLayout>
       <div className="min-h-screen bg-slate-50 p-4 dark:bg-slate-950 sm:p-6 lg:p-8">
         <div className="mx-auto max-w-7xl">
-          // ===================================================== // HEADER //
-          =====================================================
           <motion.div
             initial={{
               opacity: 0,
@@ -417,8 +367,7 @@ function Payments() {
               Manage your rent payments and view your payment history.
             </p>
           </motion.div>
-          // ===================================================== // ERROR //
-          =====================================================
+
           <AnimatePresence>
             {error && (
               <motion.div
@@ -450,8 +399,7 @@ function Payments() {
               </motion.div>
             )}
           </AnimatePresence>
-          // ===================================================== // TENANCY
-          SELECTOR // =====================================================
+
           {tenancies.length > 1 && (
             <motion.div
               initial={{
@@ -482,11 +430,8 @@ function Payments() {
               </select>
             </motion.div>
           )}
-          // ===================================================== // TOP CARDS
-          // =====================================================
+
           <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-            // ===================================================== // RENT
-            SUMMARY // =====================================================
             <motion.div
               initial={{
                 opacity: 0,
@@ -496,7 +441,7 @@ function Payments() {
                 opacity: 1,
                 y: 0,
               }}
-              className="rounded-2xl bg-slate-900 p-6 text-white shadow-lg dark:bg-slate-900"
+              className="rounded-2xl bg-slate-900 p-6 text-white shadow-lg"
             >
               <div className="mb-6 flex items-center justify-between">
                 <div>
@@ -528,8 +473,7 @@ function Payments() {
                 </div>
               </div>
             </motion.div>
-            // ===================================================== // DUE DATE
-            // =====================================================
+
             <motion.div
               initial={{
                 opacity: 0,
@@ -582,8 +526,7 @@ function Payments() {
                 )}
               </div>
             </motion.div>
-            // ===================================================== // PAYMENT
-            STATUS // =====================================================
+
             <motion.div
               initial={{
                 opacity: 0,
@@ -624,8 +567,7 @@ function Payments() {
               </p>
             </motion.div>
           </div>
-          // ===================================================== // CURRENT
-          RENT PERIOD // =====================================================
+
           <motion.div
             initial={{
               opacity: 0,
@@ -671,8 +613,7 @@ function Payments() {
               </div>
             </div>
           </motion.div>
-          // ===================================================== // PAYMENT
-          SECTION // =====================================================
+
           <motion.div
             initial={{
               opacity: 0,
@@ -687,8 +628,6 @@ function Payments() {
             }}
             className="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-2"
           >
-            // ===================================================== //
-            BREAKDOWN // =====================================================
             <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900">
               <div className="mb-6 flex items-center gap-3">
                 <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-100 text-blue-600 dark:bg-blue-950 dark:text-blue-400">
@@ -745,8 +684,7 @@ function Payments() {
                 the rental transaction.
               </div>
             </div>
-            // ===================================================== // PAY
-            BUTTON // =====================================================
+
             <div className="flex flex-col justify-between rounded-2xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900">
               <div>
                 <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-emerald-100 text-emerald-600 dark:bg-emerald-950 dark:text-emerald-400">
@@ -807,8 +745,7 @@ function Payments() {
               </div>
             </div>
           </motion.div>
-          // ===================================================== // PAYMENT
-          HISTORY // =====================================================
+
           <motion.div
             initial={{
               opacity: 0,
@@ -895,11 +832,9 @@ function Payments() {
             )}
           </motion.div>
         </div>
-        // ===================================================== // PAYMENT
-        INITIALIZATION OVERLAY //
-        =====================================================
+
         <AnimatePresence>
-          {paying && (
+          {showPaymentOverlay && (
             <motion.div
               initial={{
                 opacity: 0,
