@@ -243,9 +243,9 @@ function App() {
           <Route
             path="/payment/callback"
             element={
-              <ProtectedRoute>
+              <TenantRoute>
                 <PaymentCallback />
-              </ProtectedRoute>
+              </TenantRoute>
             }
           />
           <Route
