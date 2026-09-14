@@ -11,11 +11,16 @@ import {
 
 import DashboardLayout from "../../components/dashboard/DashboardLayout";
 import { useAuth } from "../../contexts/AuthContext";
-import { createRecurringRentPayment } from "../../firebase/paymentService";
 
-// =====================================================
-// PAGE
-// =====================================================
+import {
+  markApplicationPaymentCompleted,
+  getMyApplications,
+} from "../../firebase/applicationService";
+
+import {
+  createPayment,
+  createRecurringRentPayment,
+} from "../../firebase/paymentService";
 
 function PaymentCallback() {
   const { user } = useAuth();
@@ -23,9 +28,11 @@ function PaymentCallback() {
   const [searchParams] = useSearchParams();
 
   const [status, setStatus] = useState("verifying");
+
   const [message, setMessage] = useState(
     "Verifying your payment with Paystack...",
   );
+
   const [paymentData, setPaymentData] = useState(null);
 
   // =====================================================
@@ -52,51 +59,99 @@ function PaymentCallback() {
         setStatus("verifying");
         setMessage("Verifying your payment with Paystack...");
 
-        // -------------------------------------------------
-        // Get pending payment information
-        // -------------------------------------------------
+        // =================================================
+        // DETERMINE PAYMENT TYPE
+        // =================================================
 
-        const storedPayment = sessionStorage.getItem(
+        const storedApplicationPayment = sessionStorage.getItem(
+          "rentease_pending_application_payment",
+        );
+
+        const storedRentPayment = sessionStorage.getItem(
           "rentease_pending_rent_payment",
         );
 
-        let pendingPayment = null;
+        let pendingApplicationPayment = null;
+        let pendingRentPayment = null;
 
-        if (storedPayment) {
+        if (storedApplicationPayment) {
           try {
-            pendingPayment = JSON.parse(storedPayment);
+            pendingApplicationPayment = JSON.parse(storedApplicationPayment);
           } catch (error) {
-            console.error("Unable to parse pending payment:", error);
+            console.error(
+              "Unable to parse pending application payment:",
+              error,
+            );
           }
         }
 
-        // -------------------------------------------------
-        // Make sure the returned reference matches
-        // the payment we started.
-        // -------------------------------------------------
+        if (storedRentPayment) {
+          try {
+            pendingRentPayment = JSON.parse(storedRentPayment);
+          } catch (error) {
+            console.error("Unable to parse pending rent payment:", error);
+          }
+        }
+
+        // =================================================
+        // IDENTIFY WHICH PAYMENT WAS STARTED
+        // =================================================
+
+        let pendingPayment = null;
+        let paymentType = null;
+
+        if (pendingApplicationPayment?.reference === reference) {
+          pendingPayment = pendingApplicationPayment;
+          paymentType = "application_initial_rent";
+        } else if (pendingRentPayment?.reference === reference) {
+          pendingPayment = pendingRentPayment;
+          paymentType = "rent";
+        } else if (pendingApplicationPayment) {
+          pendingPayment = pendingApplicationPayment;
+          paymentType = "application_initial_rent";
+        } else if (pendingRentPayment) {
+          pendingPayment = pendingRentPayment;
+          paymentType = "rent";
+        }
+
+        // =================================================
+        // PAYMENT INFORMATION MUST EXIST
+        // =================================================
+
+        if (!pendingPayment) {
+          throw new Error(
+            "The payment information could not be found. Please return to RentEase and try again.",
+          );
+        }
+
+        // =================================================
+        // REFERENCE SECURITY CHECK
+        // =================================================
 
         if (
-          pendingPayment?.reference &&
+          pendingPayment.reference &&
           pendingPayment.reference !== reference
         ) {
-          setStatus("failed");
-          setMessage(
+          throw new Error(
             "The payment reference does not match the payment started from RentEase.",
           );
-          return;
         }
 
-        const expectedAmount = Number(pendingPayment?.amount || 0);
+        // =================================================
+        // EXPECTED AMOUNT
+        // =================================================
 
-        if (!expectedAmount) {
-          setStatus("failed");
-          setMessage("The expected payment amount could not be found.");
-          return;
+        const expectedAmount = Number(
+          pendingPayment.amount || pendingPayment.paymentAmount || 0,
+        );
+
+        if (!expectedAmount || expectedAmount <= 0) {
+          throw new Error("The expected payment amount could not be found.");
         }
 
-        // -------------------------------------------------
-        // Verify with RentEase backend
-        // -------------------------------------------------
+        // =================================================
+        // VERIFY WITH RENTEase BACKEND
+        // =================================================
 
         const response = await fetch("/.netlify/functions/paystack-verify", {
           method: "POST",
@@ -119,9 +174,9 @@ function PaymentCallback() {
 
         const verifiedPayment = result.data;
 
-        // -------------------------------------------------
-        // Security check
-        // -------------------------------------------------
+        // =================================================
+        // VERIFY CUSTOMER EMAIL
+        // =================================================
 
         if (verifiedPayment?.customer?.email) {
           const verifiedEmail = verifiedPayment.customer.email.toLowerCase();
@@ -135,58 +190,213 @@ function PaymentCallback() {
           }
         }
 
-        // -------------------------------------------------
-        // Create Firestore payment record
-        // ONLY AFTER successful Paystack verification.
-        // -------------------------------------------------
+        // =================================================
+        // APPLICATION INITIAL RENT PAYMENT
+        // =================================================
 
-        if (!pendingPayment?.tenancyId) {
-          throw new Error(
-            "The rental information for this payment could not be found.",
+        if (paymentType === "application_initial_rent") {
+          if (!pendingPayment.applicationId) {
+            throw new Error(
+              "The application information for this payment could not be found.",
+            );
+          }
+
+          if (pendingPayment.tenantId && pendingPayment.tenantId !== user.uid) {
+            throw new Error(
+              "You are not authorized to complete this application payment.",
+            );
+          }
+
+          setMessage("Payment verified. Activating your tenancy...");
+
+          // -----------------------------------------------
+          // COMPLETE APPLICATION PAYMENT
+          // -----------------------------------------------
+
+          await markApplicationPaymentCompleted(
+            pendingPayment.applicationId,
+            verifiedPayment.reference,
           );
+
+          // -----------------------------------------------
+          // GET UPDATED APPLICATION
+          // -----------------------------------------------
+
+          const updatedApplications = await getMyApplications(user.uid);
+
+          const updatedApplication = updatedApplications.find(
+            (application) => application.id === pendingPayment.applicationId,
+          );
+
+          // -----------------------------------------------
+          // CREATE RENT PAYMENT RECORD
+          // -----------------------------------------------
+
+          await createPayment({
+            tenantId: user.uid,
+
+            tenantName:
+              pendingPayment.tenantName ||
+              updatedApplication?.tenantName ||
+              user.displayName ||
+              "",
+
+            tenancyId: updatedApplication?.tenancyId || null,
+
+            applicationId: pendingPayment.applicationId,
+
+            propertyId:
+              pendingPayment.propertyId || updatedApplication?.propertyId || "",
+
+            propertyTitle:
+              pendingPayment.propertyTitle ||
+              updatedApplication?.propertyTitle ||
+              "Rental Property",
+
+            amount: expectedAmount,
+
+            transactionType: "rent",
+
+            status: "successful",
+
+            managerId:
+              pendingPayment.landlordId ||
+              updatedApplication?.managerId ||
+              updatedApplication?.agentId ||
+              updatedApplication?.landlordId ||
+              null,
+
+            managerRole:
+              updatedApplication?.managerRole ||
+              (updatedApplication?.agentId ? "agent" : "landlord"),
+
+            managerName: updatedApplication?.managerName || "",
+
+            paymentProvider: "paystack",
+
+            paymentReference: verifiedPayment.reference,
+
+            description: `Initial rent payment for ${
+              pendingPayment.propertyTitle ||
+              updatedApplication?.propertyTitle ||
+              "rental property"
+            }`,
+
+            metadata: {
+              paymentType: "application_initial_rent",
+
+              applicationId: pendingPayment.applicationId,
+
+              paystackReference: verifiedPayment.reference,
+
+              paystackChannel: verifiedPayment.channel || "",
+
+              paystackPaidAt: verifiedPayment.paidAt || null,
+            },
+          });
+
+          // -----------------------------------------------
+          // SAVE RECEIPT DATA
+          // -----------------------------------------------
+
+          setPaymentData({
+            reference: verifiedPayment.reference,
+
+            amount: verifiedPayment.amount / 100,
+
+            currency: verifiedPayment.currency,
+
+            channel: verifiedPayment.channel,
+
+            paidAt: verifiedPayment.paidAt,
+
+            paymentType: "application_initial_rent",
+
+            propertyTitle:
+              pendingPayment.propertyTitle ||
+              updatedApplication?.propertyTitle ||
+              "Rental Property",
+          });
+
+          // -----------------------------------------------
+          // CLEAN APPLICATION PAYMENT SESSION
+          // -----------------------------------------------
+
+          sessionStorage.removeItem("rentease_pending_application_payment");
+
+          setStatus("success");
+
+          setMessage(
+            "Your initial rent payment has been verified successfully. Your tenancy is now active.",
+          );
+
+          return;
         }
 
-        await createRecurringRentPayment({
-          tenancy: {
-            id: pendingPayment.tenancyId,
-            propertyId: pendingPayment.propertyId || "",
+        // =================================================
+        // RECURRING RENT PAYMENT
+        // =================================================
+
+        if (paymentType === "rent") {
+          if (!pendingPayment.tenancyId) {
+            throw new Error(
+              "The rental information for this payment could not be found.",
+            );
+          }
+
+          setMessage("Payment verified. Recording your rent payment...");
+
+          await createRecurringRentPayment({
+            tenancy: {
+              id: pendingPayment.tenancyId,
+
+              propertyId: pendingPayment.propertyId || "",
+
+              propertyTitle: pendingPayment.propertyTitle || "Rental Property",
+
+              rentFrequency: pendingPayment.rentFrequency || "",
+            },
+
+            tenantId: user.uid,
+
+            paymentReference: verifiedPayment.reference,
+
+            paymentMethod: verifiedPayment.channel || "paystack",
+          });
+
+          setPaymentData({
+            reference: verifiedPayment.reference,
+
+            amount: verifiedPayment.amount / 100,
+
+            currency: verifiedPayment.currency,
+
+            channel: verifiedPayment.channel,
+
+            paidAt: verifiedPayment.paidAt,
+
+            paymentType: "rent",
+
             propertyTitle: pendingPayment.propertyTitle || "Rental Property",
-            rentFrequency: pendingPayment.rentFrequency || "",
-          },
+          });
 
-          tenantId: user.uid,
+          sessionStorage.removeItem("rentease_pending_rent_payment");
 
-          paymentReference: verifiedPayment.reference,
+          setStatus("success");
 
-          paymentMethod: verifiedPayment.channel || "paystack",
-        });
+          setMessage(
+            "Your rent payment has been verified and recorded successfully.",
+          );
 
-        // -------------------------------------------------
-        // Save verified payment information
-        // -------------------------------------------------
+          return;
+        }
 
-        setPaymentData({
-          reference: verifiedPayment.reference,
-          amount: verifiedPayment.amount / 100,
-          currency: verifiedPayment.currency,
-          channel: verifiedPayment.channel,
-          paidAt: verifiedPayment.paidAt,
-        });
-
-        // -------------------------------------------------
-        // Remove pending payment
-        // -------------------------------------------------
-
-        sessionStorage.removeItem("rentease_pending_rent_payment");
-
-        setStatus("success");
-        setMessage(
-          "Your rent payment has been verified and recorded successfully.",
-        );
+        throw new Error("The payment type could not be determined.");
       } catch (error) {
         console.error("Payment verification error:", error);
 
         setStatus("failed");
+
         setMessage(
           error?.message ||
             "We could not verify your payment. Please contact support if money was deducted.",
@@ -244,6 +454,9 @@ function PaymentCallback() {
   // =====================================================
 
   if (status === "success") {
+    const isInitialPayment =
+      paymentData?.paymentType === "application_initial_rent";
+
     return (
       <DashboardLayout>
         <div className="min-h-screen bg-slate-50 p-4 dark:bg-slate-950 sm:p-6 lg:p-8">
@@ -279,12 +492,22 @@ function PaymentCallback() {
               </motion.div>
 
               <h1 className="mt-6 text-2xl font-bold text-slate-900 dark:text-white">
-                Rent Payment Successful
+                {isInitialPayment
+                  ? "Rent Payment Successful"
+                  : "Rent Payment Successful"}
               </h1>
 
               <p className="mt-3 text-sm leading-6 text-slate-500 dark:text-slate-400">
                 {message}
               </p>
+
+              {isInitialPayment && (
+                <div className="mt-5 rounded-xl bg-emerald-50 p-4 text-left text-sm leading-6 text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-400">
+                  <strong>Your tenancy is now active.</strong>
+                  <br />
+                  The property has been assigned to you and marked as occupied.
+                </div>
+              )}
 
               {paymentData && (
                 <div className="mt-6 rounded-2xl bg-slate-50 p-5 text-left dark:bg-slate-950">
@@ -305,13 +528,28 @@ function PaymentCallback() {
                   </div>
 
                   <div className="space-y-3 text-sm">
+                    {paymentData.propertyTitle && (
+                      <div className="flex justify-between gap-4">
+                        <span className="text-slate-500 dark:text-slate-400">
+                          Property
+                        </span>
+
+                        <span className="max-w-[220px] text-right font-medium text-slate-900 dark:text-white">
+                          {paymentData.propertyTitle}
+                        </span>
+                      </div>
+                    )}
+
                     <div className="flex justify-between gap-4">
                       <span className="text-slate-500 dark:text-slate-400">
                         Amount
                       </span>
 
                       <span className="font-semibold text-slate-900 dark:text-white">
-                        ₦{Number(paymentData.amount || 0).toLocaleString()}
+                        ₦
+                        {Number(paymentData.amount || 0).toLocaleString(
+                          "en-NG",
+                        )}
                       </span>
                     </div>
 
@@ -352,11 +590,18 @@ function PaymentCallback() {
 
               <button
                 type="button"
-                onClick={() => navigate("/tenant/payments")}
+                onClick={() =>
+                  navigate(
+                    isInitialPayment
+                      ? "/tenant/applications"
+                      : "/tenant/payments",
+                  )
+                }
                 className="mt-6 flex w-full items-center justify-center gap-3 rounded-xl bg-blue-600 px-5 py-3.5 font-semibold text-white transition hover:bg-blue-700"
               >
                 <FaArrowLeft />
-                Back to Payments
+
+                {isInitialPayment ? "Back to Applications" : "Back to Payments"}
               </button>
             </motion.div>
           </div>
@@ -404,11 +649,11 @@ function PaymentCallback() {
 
             <button
               type="button"
-              onClick={() => navigate("/tenant/payments")}
+              onClick={() => navigate("/tenant/applications")}
               className="mt-6 flex w-full items-center justify-center gap-3 rounded-xl bg-slate-900 px-5 py-3.5 font-semibold text-white transition hover:bg-slate-800 dark:bg-white dark:text-slate-900 dark:hover:bg-slate-200"
             >
               <FaArrowLeft />
-              Back to Payments
+              Back to Applications
             </button>
           </motion.div>
         </div>
