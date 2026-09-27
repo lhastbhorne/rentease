@@ -5,6 +5,7 @@ import { FaBed, FaBath, FaMapMarkerAlt, FaHeart } from "react-icons/fa";
 
 import { useAuth } from "../../../contexts/AuthContext";
 
+import toast from "react-hot-toast";
 import {
   saveProperty,
   removeSavedProperty,
@@ -109,7 +110,7 @@ function PropertyCard({ property, tenantView = false }) {
     } catch (error) {
       console.error("Error saving property:", error);
 
-      alert("Something went wrong. Please try again.");
+      toast.error("Something went wrong. Please try again.");
     } finally {
       setSaving(false);
     }

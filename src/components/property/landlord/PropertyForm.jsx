@@ -1,5 +1,6 @@
 import { motion } from "framer-motion";
 import { useEffect, useState } from "react";
+import toast from "react-hot-toast";
 
 import {
   uploadMultipleImages,
@@ -268,27 +269,27 @@ function PropertyForm() {
     e.preventDefault();
 
     if (!user) {
-      alert("You must be logged in to add a property.");
+     toast.error("You must be logged in to add a property.");
       return;
     }
 
     if (!isAgent && !isLandlord) {
-      alert("Only landlords and agents can add properties.");
+     toast.error("Only landlords and agents can add properties.");
       return;
     }
 
     if (isLandlord && !ownershipProof) {
-      alert("Please upload proof of ownership.");
+      toast.error("Please upload proof of ownership.");
       return;
     }
 
     if (images.length === 0) {
-      alert("Please upload at least one property image.");
+      toast.error("Please upload at least one property image.");
       return;
     }
 
     if (!formData.areaName.trim()) {
-      alert("Please enter the area or neighborhood.");
+      toast.error("Please enter the area or neighborhood.");
       return;
     }
 
@@ -398,7 +399,7 @@ function PropertyForm() {
 
       console.log("Property created:", propertyId);
 
-      alert("Property submitted successfully for verification.");
+      toast.success("Property submitted successfully for verification.");
 
       // ======================================
       // RESET FORM
@@ -419,7 +420,7 @@ function PropertyForm() {
     } catch (error) {
       console.error("Error creating property:", error);
 
-      alert(error.message || "Failed to create property. Please try again.");
+      toast.error(error.message || "Failed to create property. Please try again.");
     } finally {
       setSubmitting(false);
     }

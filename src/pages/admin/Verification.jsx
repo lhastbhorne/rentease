@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 
+import toast from "react-hot-toast";
+
 import {
   FaCheck,
   FaTimes,
@@ -107,7 +109,7 @@ function Verification() {
 
       await approveUser(selectedUser.id, user?.uid);
 
-      alert("Account approved successfully.");
+      toast.success("Account approved successfully.");
 
       setSelectedUser(null);
 
@@ -115,7 +117,7 @@ function Verification() {
     } catch (error) {
       console.error("Error approving user:", error);
 
-      alert(error.message || "Failed to approve account.");
+      toast.error(error.message || "Failed to approve account.");
     } finally {
       setProcessingId(null);
     }
@@ -137,7 +139,7 @@ function Verification() {
 
       await rejectUser(selectedUser.id, user?.uid, reason.trim());
 
-      alert("Account rejected successfully.");
+      toast.success("Account rejected successfully.");
 
       setSelectedUser(null);
 
@@ -145,7 +147,7 @@ function Verification() {
     } catch (error) {
       console.error("Error rejecting user:", error);
 
-      alert(error.message || "Failed to reject account.");
+      toast.error(error.message || "Failed to reject account.");
     } finally {
       setProcessingId(null);
     }
@@ -169,7 +171,7 @@ function Verification() {
 
       await approveProperty(property.id, user?.uid);
 
-      alert("Property approved successfully.");
+      toast.success("Property approved successfully.");
 
       setSelectedProperty(null);
 
@@ -177,7 +179,7 @@ function Verification() {
     } catch (error) {
       console.error("Error approving property:", error);
 
-      alert(error.message || "Failed to approve property.");
+      toast.error(error.message || "Failed to approve property.");
     } finally {
       setProcessingId(null);
     }
@@ -199,7 +201,7 @@ function Verification() {
 
       await rejectProperty(property.id, user?.uid, reason.trim());
 
-      alert("Property rejected successfully.");
+      toast.success("Property rejected successfully.");
 
       setSelectedProperty(null);
 
@@ -207,7 +209,7 @@ function Verification() {
     } catch (error) {
       console.error("Error rejecting property:", error);
 
-      alert(error.message || "Failed to reject property.");
+      toast.error(error.message || "Failed to reject property.");
     } finally {
       setProcessingId(null);
     }

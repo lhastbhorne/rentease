@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
+import toast from "react-hot-toast";
 
 import PropertyDetailsHero from "../../components/property/shared/PropertyDetailsHero";
 import ImageGallery from "../../components/common/ImageGallery";
@@ -157,7 +158,7 @@ function PropertyDetails() {
     // ===================================================
 
     if (user.role !== "tenant") {
-      alert("Only registered tenants can apply for rental properties.");
+      toast.error("Only registered tenants can apply for rental properties.");
 
       return;
     }

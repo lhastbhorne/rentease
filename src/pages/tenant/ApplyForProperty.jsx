@@ -10,6 +10,7 @@ import {
 } from "../../firebase/applicationService";
 
 import { useAuth } from "../../contexts/AuthContext";
+import toast from "react-hot-toast";
 
 function ApplyForProperty() {
   const { user } = useAuth();
@@ -116,17 +117,17 @@ function ApplyForProperty() {
     e.preventDefault();
 
     if (!user) {
-      alert("Please log in before applying.");
+      toast.error("Please log in before applying.");
       return;
     }
 
     if (user.role !== "tenant") {
-      alert("Only tenants can apply for properties.");
+      toast.error("Only tenants can apply for properties.");
       return;
     }
 
     if (!formData.moveInDate) {
-      alert("Please select your preferred move-in date.");
+      toast.error("Please select your preferred move-in date.");
       return;
     }
 
@@ -140,7 +141,7 @@ function ApplyForProperty() {
       const alreadyApplied = await hasAppliedForProperty(user.uid, property.id);
 
       if (alreadyApplied) {
-        alert("You have already submitted an application for this property.");
+        toast.error("You have already submitted an application for this property.");
 
         navigate("/tenant/applications");
 
@@ -196,13 +197,13 @@ function ApplyForProperty() {
         message: formData.message,
       });
 
-      alert("Application submitted successfully!");
+      toast.success("Application submitted successfully!");
 
       navigate("/tenant/applications");
     } catch (error) {
       console.error("Error submitting application:", error);
 
-      alert("Failed to submit application. Please try again.");
+      toast.error("Failed to submit application. Please try again.");
     } finally {
       setLoading(false);
     }

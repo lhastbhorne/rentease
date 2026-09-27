@@ -2,7 +2,7 @@ import { FaStar } from "react-icons/fa";
 
 function TestimonialCard({ testimonial }) {
   return (
-    <div className="rounded-2xl bg-white p-8 shadow-md transition hover:-translate-y-2 hover:shadow-xl">
+    <div className="rounded-2xl bg-white p-8 shadow-md transition hover:-translate-y-2 hover:shadow-xl dark:bg-slate-800 dark:shadow-black/20 dark:hover:shadow-black/40">
       {/* Rating */}
       <div className="mb-4 flex text-yellow-400">
         {Array.from({ length: testimonial.rating }).map((_, index) => (
@@ -11,7 +11,7 @@ function TestimonialCard({ testimonial }) {
       </div>
 
       {/* Review */}
-      <p className="leading-7 text-slate-600 italic">
+      <p className="leading-7 text-slate-600 italic dark:text-slate-300">
         "{testimonial.review}"
       </p>
 
@@ -24,11 +24,11 @@ function TestimonialCard({ testimonial }) {
         />
 
         <div>
-          <h4 className="font-semibold text-slate-900">
+          <h4 className="font-semibold text-slate-900 dark:text-white">
             {testimonial.name}
           </h4>
 
-          <p className="text-sm text-slate-500">
+          <p className="text-sm text-slate-500 dark:text-slate-400">
             {testimonial.role}
           </p>
         </div>

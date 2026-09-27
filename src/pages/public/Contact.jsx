@@ -9,6 +9,8 @@ import {
   FaArrowRight,
 } from "react-icons/fa";
 
+import toast from "react-hot-toast";
+
 function Contact() {
   const [formData, setFormData] = useState({
     name: "",
@@ -52,7 +54,7 @@ function Contact() {
     } catch (error) {
       console.error("Contact form error:", error);
 
-      alert("Unable to send your message. Please try again.");
+      toast.error("Unable to send your message. Please try again.");
     } finally {
       setSubmitting(false);
     }

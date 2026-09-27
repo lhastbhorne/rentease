@@ -8,6 +8,8 @@ import {
   FaMoneyBillWave,
 } from "react-icons/fa";
 
+import toast from "react-hot-toast";
+
 import DashboardLayout from "../../components/dashboard/DashboardLayout";
 import { useAuth } from "../../contexts/AuthContext";
 
@@ -90,13 +92,13 @@ function Applications() {
         ),
       );
 
-      alert(
+      toast.success(
         "Application approved. The property has been reserved for the tenant for 7 days while they complete payment.",
       );
     } catch (error) {
       console.error("Approval error:", error);
 
-      alert(error.message || "Failed to approve application.");
+      toast.error(error.message || "Failed to approve application.");
     } finally {
       setProcessingId(null);
     }
@@ -123,11 +125,11 @@ function Applications() {
         ),
       );
 
-      alert("Application rejected successfully.");
+      toast.success("Application rejected successfully.");
     } catch (error) {
       console.error("Rejection error:", error);
 
-      alert(error.message || "Failed to reject application.");
+      toast.error(error.message || "Failed to reject application.");
     } finally {
       setProcessingId(null);
     }

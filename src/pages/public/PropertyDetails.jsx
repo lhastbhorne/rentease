@@ -16,6 +16,8 @@ import { getMyApplications } from "../../firebase/applicationService";
 
 import { useAuth } from "../../contexts/AuthContext";
 
+import toast from "react-hot-toast";
+
 function PropertyDetails() {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -177,7 +179,7 @@ function PropertyDetails() {
     // ===================================================
 
     if (user.role !== "tenant") {
-      alert(
+      toast.error(
         "Only registered tenants can apply for rental properties.",
       );
 

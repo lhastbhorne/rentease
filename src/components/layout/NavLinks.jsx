@@ -17,7 +17,9 @@ function NavLinks({ mobile = false, onClick }) {
             onClick={onClick}
             className={({ isActive }) =>
               `font-medium transition ${
-                isActive ? "text-blue-600" : "text-gray-700 hover:text-blue-600"
+                isActive
+                  ? "text-blue-600 dark:text-blue-400"
+                  : "text-gray-700 hover:text-blue-600 dark:text-gray-200 dark:hover:text-blue-400"
               }`
             }
           >

@@ -2,7 +2,15 @@
 
 @custom-variant dark (&:where(.dark, .dark *));
 
+/* ==========================================
+   GLOBAL
+========================================== */
+
 html {
+  width: 100%;
+  max-width: 100%;
+  overflow-x: hidden;
+
   transition:
     background-color 0.3s ease,
     color 0.3s ease;
@@ -11,11 +19,22 @@ html {
 body {
   margin: 0;
   min-width: 320px;
+  width: 100%;
+  max-width: 100%;
+  overflow-x: hidden;
+
   background-color: white;
   color: #0f172a;
+
   transition:
     background-color 0.3s ease,
     color 0.3s ease;
+}
+
+#root {
+  width: 100%;
+  max-width: 100%;
+  overflow-x: hidden;
 }
 
 .dark body {
@@ -23,7 +42,22 @@ body {
   color: #f8fafc;
 }
 
+/* ==========================================
+   PREVENT HORIZONTAL OVERFLOW
+========================================== */
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+/* ==========================================
+   CHROME AUTOFILL
+========================================== */
+
 /* Prevent Chrome autofill from changing input backgrounds */
+
 input:-webkit-autofill,
 input:-webkit-autofill:hover,
 input:-webkit-autofill:focus,
@@ -34,6 +68,7 @@ select:-webkit-autofill:focus,
 select:-webkit-autofill:active {
   -webkit-box-shadow: 0 0 0 1000px white inset !important;
   -webkit-text-fill-color: #0f172a !important;
+
   transition: background-color 5000s ease-in-out 0s;
 }
 

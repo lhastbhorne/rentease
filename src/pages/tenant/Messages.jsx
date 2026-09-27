@@ -11,6 +11,8 @@ import {
   FaCheck,
 } from "react-icons/fa";
 
+import toast from "react-hot-toast";
+
 import DashboardLayout from "../../components/dashboard/DashboardLayout";
 
 import { useAuth } from "../../contexts/AuthContext";
@@ -149,7 +151,7 @@ function Messages() {
     } catch (error) {
       console.error("Error sending message:", error);
 
-      alert("Failed to send message. Please try again.");
+      toast.error("Failed to send message. Please try again.");
     } finally {
       setSending(false);
     }
@@ -179,7 +181,7 @@ function Messages() {
 
   async function handleSaveEdit(messageId) {
     if (!editingText.trim()) {
-      alert("Message cannot be empty.");
+      toast.error("Message cannot be empty.");
       return;
     }
 
@@ -191,7 +193,7 @@ function Messages() {
     } catch (error) {
       console.error("Error editing message:", error);
 
-      alert("Failed to edit message.");
+      toast.error("Failed to edit message.");
     }
   }
 
@@ -213,7 +215,7 @@ function Messages() {
     } catch (error) {
       console.error("Error deleting message:", error);
 
-      alert("Failed to delete message.");
+      toast.error("Failed to delete message.");
     }
   }
 

@@ -9,6 +9,8 @@ import AuthButton from "../../components/auth/AuthButton";
 import Divider from "../../components/auth/Divider";
 import SocialLogin from "../../components/auth/SocialLogin";
 
+import toast from "react-hot-toast";
+
 import { loginUser } from "../../firebase/services";
 
 function Login() {
@@ -53,7 +55,7 @@ function Login() {
       // =====================================================
 
       if (!firebaseUser.emailVerified) {
-        alert("Please verify your email before logging in.");
+        toast.error("Please verify your email before logging in.");
 
         navigate("/verify-email");
 

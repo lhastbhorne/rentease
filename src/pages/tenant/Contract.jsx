@@ -18,6 +18,8 @@ import {
 } from "react-icons/fa";
 import jsPDF from "jspdf";
 
+import toast from "react-hot-toast";
+
 import DashboardLayout from "../../components/dashboard/DashboardLayout";
 import { useAuth } from "../../contexts/AuthContext";
 import { getMyTenancy } from "../../firebase/tenancyService";
@@ -346,7 +348,7 @@ function Contract() {
     } catch (error) {
       console.error("Error generating contract:", error);
 
-      alert("Unable to generate the rental contract. Please try again.");
+      toast.error("Unable to generate the rental contract. Please try again.");
     } finally {
       setDownloading(false);
     }

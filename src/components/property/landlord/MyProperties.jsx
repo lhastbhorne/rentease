@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import toast from "react-hot-toast";
 
 import DashboardLayout from "../../components/dashboard/DashboardLayout";
 import LandlordPropertyGrid from "../../components/property/LandlordPropertyGrid";
@@ -35,7 +36,7 @@ function MyProperties() {
 
   async function handleDelete(propertyId) {
     const confirmed = window.confirm(
-      "Are you sure you want to delete this property?"
+      "Are you sure you want to delete this property?",
     );
 
     if (!confirmed) return;
@@ -44,24 +45,23 @@ function MyProperties() {
       await deleteProperty(propertyId);
 
       setProperties((prev) =>
-        prev.filter((property) => property.id !== propertyId)
+        prev.filter((property) => property.id !== propertyId),
       );
+
+      toast.success("Property deleted successfully!");
     } catch (error) {
       console.error("Error deleting property:", error);
-      alert("Failed to delete property.");
+
+      toast.error("Failed to delete property. Please try again.");
     }
   }
 
   return (
     <DashboardLayout>
       <div className="mb-8">
-        <h1 className="text-3xl font-bold text-slate-900">
-          My Properties
-        </h1>
+        <h1 className="text-3xl font-bold text-slate-900">My Properties</h1>
 
-        <p className="mt-2 text-slate-500">
-          Manage your uploaded properties.
-        </p>
+        <p className="mt-2 text-slate-500">Manage your uploaded properties.</p>
       </div>
 
       {loading ? (
@@ -69,10 +69,7 @@ function MyProperties() {
           Loading properties...
         </div>
       ) : (
-        <LandlordPropertyGrid
-          properties={properties}
-          onDelete={handleDelete}
-        />
+        <LandlordPropertyGrid properties={properties} onDelete={handleDelete} />
       )}
     </DashboardLayout>
   );

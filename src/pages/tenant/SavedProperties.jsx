@@ -10,6 +10,8 @@ import {
   FaArrowRight,
 } from "react-icons/fa";
 
+import toast from "react-hot-toast";
+
 import { Link } from "react-router-dom";
 
 import DashboardLayout from "../../components/dashboard/DashboardLayout";
@@ -76,7 +78,7 @@ function SavedProperties() {
     } catch (error) {
       console.error("Error removing property:", error);
 
-      alert("Failed to remove property.");
+      toast.error("Failed to remove property.");
     } finally {
       setRemovingId(null);
     }

@@ -11,6 +11,7 @@ import {
 import { doc, getDoc, setDoc, serverTimestamp } from "firebase/firestore";
 
 import { useNavigate } from "react-router-dom";
+import toast from "react-hot-toast";
 
 import { auth } from "../../firebase/firebase";
 import { db } from "../../firebase/firestore";
@@ -54,17 +55,11 @@ function SocialLogin() {
       if (!userSnapshot.exists()) {
         await setDoc(userRef, {
           uid: firebaseUser.uid,
-
           fullName: firebaseUser.displayName || "",
-
           email: firebaseUser.email || "",
-
           role: "tenant",
-
           photoURL: firebaseUser.photoURL || "",
-
           createdAt: serverTimestamp(),
-
           updatedAt: serverTimestamp(),
         });
 
@@ -110,30 +105,27 @@ function SocialLogin() {
       }
 
       if (error.code === "auth/popup-blocked") {
-        alert(
-          "Google login popup was blocked. Please allow popups for localhost.",
+        toast.error(
+          "Google login popup was blocked. Please allow popups for this site.",
         );
-
         return;
       }
 
       if (error.code === "auth/unauthorized-domain") {
-        alert(
-          "localhost is not authorized for Google login. Add localhost under Firebase Authentication → Settings → Authorized domains.",
+        toast.error(
+          "This domain is not authorized for Google login. Please check your Firebase authorized domains.",
         );
-
         return;
       }
 
       if (error.code === "auth/account-exists-with-different-credential") {
-        alert(
+        toast.error(
           "An account already exists with this email using another login method.",
         );
-
         return;
       }
 
-      alert(error.message || "Google sign-in failed. Please try again.");
+      toast.error(error.message || "Google sign-in failed. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -150,14 +142,14 @@ function SocialLogin() {
       }
 
       if (password.length < 6) {
-        alert("Password must be at least 6 characters.");
+        toast.error("Password must be at least 6 characters.");
         return;
       }
 
       const currentUser = auth.currentUser;
 
       if (!currentUser) {
-        alert("Please sign in with Google first.");
+        toast.error("Please sign in with Google first.");
         return;
       }
 
@@ -168,13 +160,13 @@ function SocialLogin() {
 
       await linkWithCredential(currentUser, credential);
 
-      alert(
+      toast.success(
         "Password added successfully. You can now log in with your email and password.",
       );
     } catch (error) {
       console.error("Error adding password:", error);
 
-      alert(error.message || "Could not add password.");
+      toast.error(error.message || "Could not add password.");
     }
   }
 
