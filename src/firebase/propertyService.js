@@ -223,16 +223,15 @@ export async function getAllProperties() {
   const q = query(
     collection(db, "properties"),
     where("status", "==", PROPERTY_STATUS.AVAILABLE),
+    where("approvalStatus", "==", "approved"),
   );
 
   const snapshot = await getDocs(q);
 
-  return snapshot.docs
-    .map((item) => ({
-      id: item.id,
-      ...item.data(),
-    }))
-    .filter((property) => property.approvalStatus === "approved");
+  return snapshot.docs.map((item) => ({
+    id: item.id,
+    ...item.data(),
+  }));
 }
 
 // =====================================================

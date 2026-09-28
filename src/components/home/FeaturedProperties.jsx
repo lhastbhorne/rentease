@@ -28,7 +28,7 @@ function FeaturedProperties() {
           return dateB - dateA;
         });
 
-        setProperties(sortedProperties.slice(0, 6));
+        setProperties(sortedProperties.slice(0, 3));
       } catch (err) {
         console.error("Error loading featured properties:", err);
         setError("Unable to load properties at the moment.");
